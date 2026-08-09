@@ -1,98 +1,127 @@
-import { ALEX_CHEN_SEED } from '@/lib/services/seed-data.service'
-import { BarChart3, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { loadAppState } from '@/lib/store/app-store'
+import { Filter, BarChart3, ShieldCheck, AlertCircle } from 'lucide-react'
 
 export default function MarketInsightsPage() {
-  const insights = ALEX_CHEN_SEED.marketInsights
+  const [activeCategory, setActiveCategory] = useState('ALL')
+  const [savedJobsCount, setSavedJobsCount] = useState(12)
+  const [userSkills, setUserSkills] = useState<string[]>([])
+
+  useEffect(() => {
+    const state = loadAppState()
+    setSavedJobsCount(state.savedJobs?.length || 12)
+    setUserSkills(state.customSkills || ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'REST APIs'])
+  }, [])
+
+  const categories = ['ALL', 'CRITICAL GAPS', 'VERIFIED STRENGTHS', 'LANGUAGES', 'FRAMEWORKS', 'DATABASES', 'CLOUD']
+
+  const allMarketSkills = [
+    { skillName: 'REST APIs', category: 'FRAMEWORKS', freq: 75, status: 'STRONG', priority: 'STRENGTH' },
+    { skillName: 'TypeScript', category: 'LANGUAGES', freq: 67, status: 'STRONG', priority: 'STRENGTH' },
+    { skillName: 'React', category: 'FRAMEWORKS', freq: 67, status: 'STRONG', priority: 'STRENGTH' },
+    { skillName: 'Node.js', category: 'FRAMEWORKS', freq: 58, status: 'STRONG', priority: 'STRENGTH' },
+    { skillName: 'PostgreSQL', category: 'DATABASES', freq: 50, status: 'STRONG', priority: 'STRENGTH' },
+    { skillName: 'Docker', category: 'CLOUD', freq: 50, status: userSkills.includes('Docker') ? 'STRONG' : 'MISSING', priority: 'CRITICAL GAPS' },
+    { skillName: 'Redis', category: 'DATABASES', freq: 42, status: userSkills.includes('Redis') ? 'STRONG' : 'MISSING', priority: 'CRITICAL GAPS' },
+    { skillName: 'CI/CD', category: 'CLOUD', freq: 33, status: userSkills.includes('CI/CD') ? 'STRONG' : 'MISSING', priority: 'CRITICAL GAPS' },
+    { skillName: 'Python', category: 'LANGUAGES', freq: 33, status: userSkills.includes('Python') ? 'STRONG' : 'MODERATE', priority: 'VERIFIED STRENGTHS' },
+  ]
+
+  const filteredSkills = allMarketSkills.filter((item) => {
+    if (activeCategory === 'ALL') return true
+    if (activeCategory === 'CRITICAL GAPS') return item.status === 'MISSING'
+    if (activeCategory === 'VERIFIED STRENGTHS') return item.status === 'STRONG'
+    return item.category === activeCategory
+  })
 
   return (
-    <div className="space-y-6">
-      <div className="border-b border-slate-800 pb-4">
-        <h1 className="text-xl font-bold text-white">Target Market Analysis</h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Aggregated demand patterns across 12 saved software engineering internship postings.
+    <div className="space-y-6 pb-12">
+      <div className="border-b border-slate-200/80 pb-4">
+        <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+          <BarChart3 className="h-6 w-6 text-slate-900" />
+          <span>Target Market Analysis ({savedJobsCount} Saved Jobs)</span>
+        </h1>
+        <p className="text-xs text-slate-500 font-medium mt-1">
+          Aggregated demand patterns across your target software engineering postings vs your evidence graph.
         </p>
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl space-y-6">
+      {/* Filter Category Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200/80">
+        <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Filter Category:</span>
+        <div className="flex items-center gap-1.5">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={activeCategory === cat ? 'mobbin-pill-active' : 'mobbin-pill'}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 shadow-xl space-y-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
-            <span className="text-xs text-slate-400">Total Saved Jobs</span>
-            <p className="text-2xl font-bold text-white mt-1">12</p>
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-xs">
+            <span className="text-xs font-bold text-slate-500">Total Saved Jobs</span>
+            <p className="text-2xl font-black text-slate-900 mt-1">{savedJobsCount}</p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
-            <span className="text-xs text-slate-400">Top Market Skill</span>
-            <p className="text-2xl font-bold text-blue-400 mt-1">REST APIs (75%)</p>
+          <div className="rounded-xl border border-slate-300/80 bg-slate-100/80 p-4 shadow-xs">
+            <span className="text-xs font-bold text-slate-500">Top Market Skill</span>
+            <p className="text-2xl font-black text-slate-900 mt-1">REST APIs (75%)</p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
-            <span className="text-xs text-slate-400">Top Evidence Gap</span>
-            <p className="text-2xl font-bold text-rose-400 mt-1">Testing (58%)</p>
+          <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-4 shadow-xs">
+            <span className="text-xs font-bold text-slate-500">Top Evidence Gap</span>
+            <p className="text-2xl font-black text-rose-700 mt-1">Docker & CI/CD</p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
-            <span className="text-xs text-slate-400">Strongest Evidence</span>
-            <p className="text-2xl font-bold text-emerald-400 mt-1">React & REST</p>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-xs">
+            <span className="text-xs font-bold text-slate-500">Strongest Evidence</span>
+            <p className="text-2xl font-black text-emerald-800 mt-1">React & TypeScript</p>
           </div>
         </div>
 
         {/* Detailed Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-slate-400 font-semibold uppercase border-b border-slate-800">
+        <div className="overflow-x-auto rounded-xl border border-slate-200/80">
+          <table className="w-full text-left text-xs text-slate-700">
+            <thead className="bg-slate-50/80 backdrop-blur-md text-slate-500 font-bold uppercase border-b border-slate-200/80 text-[10px] tracking-wider">
               <tr>
                 <th className="px-4 py-3">Skill Name</th>
                 <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Job Frequency</th>
                 <th className="px-4 py-3">Market Demand %</th>
-                <th className="px-4 py-3">Req vs Pref</th>
-                <th className="px-4 py-3">Your Evidence Status</th>
-                <th className="px-4 py-3">Priority Action</th>
+                <th className="px-4 py-3">Evidence Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80">
-              {insights.map((item) => (
-                <tr key={item.skillName} className="hover:bg-slate-900/50 transition-colors">
-                  <td className="px-4 py-3 font-semibold text-white">{item.skillName}</td>
-                  <td className="px-4 py-3 font-mono text-slate-400">{item.category}</td>
-                  <td className="px-4 py-3">{item.frequencyCount} / {item.totalJobs} jobs</td>
+            <tbody className="divide-y divide-slate-100/80 bg-white font-medium">
+              {filteredSkills.map((item) => (
+                <tr key={item.skillName} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="px-4 py-3 font-black text-slate-900">{item.skillName}</td>
+                  <td className="px-4 py-3 font-mono text-slate-500">{item.category}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-200">{item.frequencyPercent}%</span>
-                      <div className="h-1.5 w-16 rounded-full bg-slate-800 overflow-hidden">
+                      <span className="font-black text-slate-900">{item.freq}%</span>
+                      <div className="h-2 w-20 rounded-full bg-slate-100 border border-slate-200 overflow-hidden">
                         <div
-                          className="h-full bg-blue-500 rounded-full"
-                          style={{ width: `${item.frequencyPercent}%` }}
+                          className="h-full bg-slate-900 rounded-full"
+                          style={{ width: `${item.freq}%` }}
                         />
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-400">
-                    {item.requiredCount} req • {item.preferredCount} pref
-                  </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold border ${
-                        item.studentEvidence === 'STRONG'
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                          : item.studentEvidence === 'MODERATE'
-                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                          : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border shadow-xs ${
+                        item.status === 'STRONG'
+                          ? 'bg-emerald-50/80 backdrop-blur-md text-emerald-800 border-emerald-200'
+                          : 'bg-rose-50/80 backdrop-blur-md text-rose-800 border-rose-200'
                       }`}
                     >
-                      {item.studentEvidence}
+                      {item.status}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {item.priority === 'CRITICAL_GAP' && (
-                      <span className="text-rose-400 font-semibold">Priority Gap #1</span>
-                    )}
-                    {item.priority === 'HIGH_GAP' && (
-                      <span className="text-amber-400 font-semibold">Priority Gap #2</span>
-                    )}
-                    {item.priority === 'STRENGTH' && (
-                      <span className="text-emerald-400">Verified Strength</span>
-                    )}
-                    {item.priority === 'SECONDARY' && (
-                      <span className="text-slate-400">Secondary</span>
-                    )}
                   </td>
                 </tr>
               ))}

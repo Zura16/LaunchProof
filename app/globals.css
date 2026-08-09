@@ -4,33 +4,33 @@
 
 @layer base {
   :root {
-    --background: 222 47% 4%;
-    --foreground: 210 40% 98%;
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
 
-    --card: 222 47% 6%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
 
-    --popover: 222 47% 6%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 14%;
-    --input: 217.2 32.6% 14%;
-    --ring: 224.3 76.3% 48%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 47.4% 11.2%;
 
     --radius: 0.75rem;
   }
@@ -38,48 +38,57 @@
 
 @layer base {
   * {
-    @apply border-white/[0.08];
+    @apply border-slate-200;
   }
   body {
-    @apply bg-[#080b11] text-slate-100 antialiased selection:bg-blue-500/30 selection:text-blue-200;
+    @apply bg-slate-50 text-slate-900 antialiased selection:bg-slate-900 selection:text-white;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
-/* Background Subtle Grid Texture (Mobbin style) */
+/* Liquid Glass Button & Control Design System */
+.glass-btn-primary {
+  @apply relative inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900/85 backdrop-blur-xl px-5 py-2.5 text-xs font-bold text-white border border-slate-700/60 shadow-lg shadow-slate-900/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] transition-all duration-200 hover:bg-slate-900/95 hover:border-slate-600 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] cursor-pointer;
+}
+
+.glass-btn-secondary {
+  @apply relative inline-flex items-center justify-center gap-2 rounded-xl bg-white/80 backdrop-blur-xl px-5 py-2.5 text-xs font-bold text-slate-900 border border-slate-300/80 shadow-md shadow-slate-900/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9)] transition-all duration-200 hover:bg-white/95 hover:border-slate-400 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer;
+}
+
+/* Background Subtle Grid Texture */
 .bg-mobbin-grid {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 .bg-mobbin-glow {
-  background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.04) 35%, transparent 70%);
+  background: radial-gradient(circle at 50% 0%, rgba(15, 23, 42, 0.06) 0%, rgba(30, 41, 59, 0.02) 35%, transparent 70%);
 }
 
 .mobbin-card {
-  @apply rounded-xl border border-white/[0.08] bg-[#0d1320]/80 backdrop-blur-md transition-all duration-300 hover:border-blue-500/30 hover:bg-[#101828] hover:shadow-xl hover:shadow-blue-500/5;
+  @apply rounded-xl border border-slate-200/80 bg-white/90 backdrop-blur-xl shadow-sm transition-all duration-300 hover:border-slate-400/80 hover:bg-white hover:shadow-xl hover:shadow-slate-900/10;
 }
 
 .mobbin-pill {
-  @apply rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-slate-300 hover:border-white/20 hover:bg-white/[0.08] hover:text-white transition-all cursor-pointer;
+  @apply rounded-full border border-slate-300/80 bg-white/80 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-slate-700 hover:border-slate-400 hover:bg-white hover:text-slate-900 shadow-sm shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] transition-all cursor-pointer;
 }
 
 .mobbin-pill-active {
-  @apply rounded-full border border-blue-500/40 bg-blue-500/15 px-3 py-1 text-xs font-semibold text-blue-400 shadow-sm shadow-blue-500/20;
+  @apply rounded-full border border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-3.5 py-1 text-xs font-bold text-white shadow-md shadow-slate-900/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] transition-all cursor-pointer;
 }
 
-/* Custom Mobbin Scrollbar */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #080b11;
+  background: #f8fafc;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.4);
 }
