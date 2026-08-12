@@ -17,6 +17,7 @@ import {
   Rocket,
   RefreshCw,
   User,
+  MessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { loadAppState, saveAppState } from '@/lib/store/app-store'
@@ -29,6 +30,7 @@ const mainNav = [
   { name: 'Skill Evidence', href: '/evidence', icon: ShieldCheck },
   { name: 'Recommendations', href: '/recommendations', icon: Lightbulb, badge: '3' },
   { name: 'Projects', href: '/projects', icon: FolderGit2 },
+  { name: 'AI Interviews', href: '/interviews', icon: MessageSquare, badge: 'NEW' },
   { name: 'Applications', href: '/applications', icon: Send, badge: '4' },
 ]
 
