@@ -6,10 +6,9 @@ import {
   extractTextFromPDFBuffer,
   extractSkillsFromText,
   extractBulletsFromText,
-  ExtractedSkillResult,
   ExtractedBulletResult,
 } from '@/lib/services/resume-parser-engine'
-import { FileText, Sparkles, CheckCircle2, ShieldCheck, Upload, Plus, X, RefreshCw } from 'lucide-react'
+import { FileText, Sparkles, CheckCircle2, ShieldCheck, Upload, Plus, X, RefreshCw, Download } from 'lucide-react'
 
 export default function ResumePage() {
   const [resumeText, setResumeText] = useState<string>('')
@@ -23,7 +22,9 @@ export default function ResumePage() {
 
   useEffect(() => {
     const state = loadAppState()
-    setExtractedSkills(state.customSkills || ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'REST APIs'])
+    const currentSkills = state.customSkills || ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'REST APIs']
+    setExtractedSkills(currentSkills)
+    setExtractedBullets(extractBulletsFromText('', currentSkills))
   }, [])
 
   // Handle PDF or TXT File Upload with Advanced Engine
@@ -95,6 +96,23 @@ export default function ResumePage() {
     saveAppState({ ...state, customSkills: updated })
   }
 
+  // Export Enhanced Resume Download
+  const handleExportResume = () => {
+    const header = `EVIDENCE-ENHANCED STUDENT RÉSUMÉ\nVerified by LaunchProof Engine\n\nTECHNICAL SKILLS:\n${extractedSkills.join(', ')}\n\nSUGGESTED EVIDENCE-BACKED BULLET REVISONS:\n`
+    const bulletsBody = extractedBullets
+      .map((b, i) => `${i + 1}. ${b.suggested}\n   [Evidence Citation: ${b.evidenceBacking}]`)
+      .join('\n\n')
+
+    const fullContent = header + bulletsBody
+    const blob = new Blob([fullContent], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `LaunchProof_Enhanced_Resume.txt`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-8 pb-12">
       {/* Top Header */}
@@ -108,6 +126,11 @@ export default function ResumePage() {
             Upload your PDF/TXT résumé or paste text below to extract skills and generate evidence-backed bullet improvements.
           </p>
         </div>
+
+        <button onClick={handleExportResume} className="glass-btn-primary py-2.5 px-4 text-xs">
+          <Download className="h-4 w-4 text-white" />
+          <span>Download Enhanced Résumé</span>
+        </button>
       </div>
 
       {/* 1. Drag & Drop File Uploader & Direct Text Box */}
