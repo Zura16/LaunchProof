@@ -6,6 +6,7 @@ import { ALEX_CHEN_SEED } from '@/lib/services/seed-data.service'
 import { ReadinessOverview } from '@/components/dashboard/readiness-overview'
 import { HighestImpactActions } from '@/components/dashboard/highest-impact-actions'
 import { MarketQuickBar } from '@/components/dashboard/market-quick-bar'
+import { ReadinessRadar } from '@/components/dashboard/readiness-radar'
 import { loadAppState } from '@/lib/store/app-store'
 import Link from 'next/link'
 import { Plus, Upload, ArrowRight, Filter, Sparkles } from 'lucide-react'
@@ -122,12 +123,13 @@ export default function DashboardPage() {
         />
       </section>
 
-      {/* 3. High Impact Actions & Target Market Breakdown Grid */}
+      {/* 3. High Impact Actions & Target Market Breakdown Grid with Skill Radar */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-7 space-y-8">
           <HighestImpactActions recommendations={seed.recommendations} />
         </div>
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-5 space-y-8">
+          <ReadinessRadar />
           <MarketQuickBar insights={seed.marketInsights} />
         </div>
       </div>
