@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react'
 import { loadAppState, saveAppState } from '@/lib/store/app-store'
 import { SavedJobData } from '@/lib/services/seed-data.service'
 import Link from 'next/link'
-import { Plus, ExternalLink, CheckCircle2, MapPin, Building2, Trash2, Briefcase } from 'lucide-react'
+import { Plus, ExternalLink, CheckCircle2, MapPin, Building2, Trash2, Briefcase, Sparkles, X, Target, ArrowRight } from 'lucide-react'
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<SavedJobData[]>([])
+  const [selectedMatchJob, setSelectedMatchJob] = useState<SavedJobData | null>(null)
 
   useEffect(() => {
     const state = loadAppState()
@@ -38,6 +39,63 @@ export default function JobsPage() {
           <span>Save New Job</span>
         </Link>
       </div>
+
+      {/* Deep Match Score Modal */}
+      {selectedMatchJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 max-w-xl w-full space-y-6 shadow-2xl relative">
+            <button
+              onClick={() => setSelectedMatchJob(null)}
+              className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-800 border border-emerald-200 shadow-xs">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Deep Match Score: 88% Match</span>
+              </div>
+              <h2 className="text-xl font-black text-slate-900">{selectedMatchJob.title} @ {selectedMatchJob.company}</h2>
+              <p className="text-xs text-slate-500 font-medium">Detailed breakdown of verified evidence vs job requirements.</p>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Verified Evidence Overlap</h3>
+              <div className="space-y-2">
+                {selectedMatchJob.requirements.map((req, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-bold">
+                    <span className="text-slate-900">{req.skillName}</span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] ${
+                        req.matchingEvidence === 'STRONG'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : req.matchingEvidence === 'MODERATE'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-rose-100 text-rose-800'
+                      }`}
+                    >
+                      {req.matchingEvidence}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500">Recommended Next Step:</span>
+              <Link
+                href="/projects/plan-1"
+                onClick={() => setSelectedMatchJob(null)}
+                className="glass-btn-primary py-2 px-4 text-xs"
+              >
+                <span>View Project Upgrade</span>
+                <ArrowRight className="h-3.5 w-3.5 text-white" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {jobs.length === 0 ? (
         <div className="rounded-3xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-12 text-center space-y-4 shadow-sm">
@@ -136,7 +194,10 @@ export default function JobsPage() {
 
               <div className="mt-5 border-t border-slate-100/80 pt-4 flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-500">Status: Saved</span>
-                <button className="glass-btn-secondary py-1.5 px-3.5 text-xs">
+                <button
+                  onClick={() => setSelectedMatchJob(job)}
+                  className="glass-btn-secondary py-1.5 px-3.5 text-xs"
+                >
                   Deep Match
                 </button>
               </div>
