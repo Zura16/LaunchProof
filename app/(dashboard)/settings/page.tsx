@@ -1,62 +1,127 @@
-import { Settings, Github, Trash2 } from 'lucide-react'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { loadAppState, saveAppState } from '@/lib/store/app-store'
+import { ALEX_CHEN_SEED } from '@/lib/services/seed-data.service'
+import { Settings, Database, Download, RefreshCw, HardDrive, ShieldCheck, Check } from 'lucide-react'
 
 export default function SettingsPage() {
+  const [storageBytes, setStorageBytes] = useState(0)
+  const [copiedBackup, setCopiedBackup] = useState(false)
+  const [profile, setProfile] = useState<any>(null)
+
+  useEffect(() => {
+    const state = loadAppState()
+    setProfile(state.profile)
+    const jsonStr = JSON.stringify(state)
+    setStorageBytes(new Blob([jsonStr]).size)
+  }, [])
+
+  const handleExportBackup = () => {
+    const state = loadAppState()
+    const jsonStr = JSON.stringify(state, null, 2)
+    const blob = new Blob([jsonStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `LaunchProof_State_Backup_${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setCopiedBackup(true)
+    setTimeout(() => setCopiedBackup(false), 2000)
+  }
+
+  const handleResetState = () => {
+    if (confirm('Are you sure you want to reset account data back to default demo state?')) {
+      const demoState = {
+        savedJobs: ALEX_CHEN_SEED.savedJobs,
+        projectPlan: ALEX_CHEN_SEED.projectPlan,
+        applications: ALEX_CHEN_SEED.applications,
+        customSkills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Express', 'REST APIs', 'Git'],
+        profile: ALEX_CHEN_SEED.profile,
+      }
+      saveAppState(demoState as any)
+      window.location.reload()
+    }
+  }
+
   return (
     <div className="space-y-6 pb-12">
       <div className="border-b border-slate-200/80 pb-4">
         <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
           <Settings className="h-6 w-6 text-slate-900" />
-          <span>Account & Privacy Settings</span>
+          <span>System Settings & Storage Analytics</span>
         </h1>
-        <p className="text-xs font-medium text-slate-500 mt-1">
-          Manage your GitHub connection, privacy controls, and data retention.
+        <p className="text-xs text-slate-500 font-medium mt-1">
+          Inspect client-side storage persistence, export account backups, and manage system preferences.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-8 space-y-6 shadow-xl">
-        {/* Connected Accounts */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-black text-slate-900">Connected Accounts</h3>
-          <div className="flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/80 backdrop-blur-md p-5 shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900/90 text-white shadow-sm">
-                <Github className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs font-black text-slate-900">GitHub Connected</p>
-                <p className="text-[11px] font-medium text-slate-500">@alexchen • 3 repositories synced</p>
-              </div>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Storage Usage Console */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 space-y-4 shadow-md">
+          <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+            <HardDrive className="h-4 w-4 text-slate-900" />
+            <span>Local Storage Memory Usage</span>
+          </div>
+
+          <div className="rounded-xl bg-slate-50 p-4 space-y-2 border border-slate-200/80">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span className="text-slate-500">Persistent State Size:</span>
+              <span className="text-slate-900 font-mono">{(storageBytes / 1024).toFixed(2)} KB</span>
             </div>
-            <button className="rounded-xl bg-rose-50/80 backdrop-blur-md px-4 py-2 text-xs font-bold text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors shadow-xs">
-              Disconnect GitHub
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span className="text-slate-500">Active Profile:</span>
+              <span className="text-slate-900">{profile?.fullName || 'Personal Account'}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span className="text-slate-500">Storage Backend:</span>
+              <span className="text-emerald-700">localStorage / IndexedDB Engine</span>
+            </div>
+          </div>
+
+          <div className="pt-2 flex items-center gap-3">
+            <button onClick={handleExportBackup} className="glass-btn-primary py-2 px-4 text-xs">
+              {copiedBackup ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Backup Downloaded!</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-3.5 w-3.5 text-white" />
+                  <span>Export JSON Backup</span>
+                </>
+              )}
+            </button>
+
+            <button onClick={handleResetState} className="glass-btn-secondary py-2 px-4 text-xs">
+              <RefreshCw className="h-3.5 w-3.5 text-slate-700" />
+              <span>Reset to Demo State</span>
             </button>
           </div>
         </div>
 
-        {/* Public Profile Privacy */}
-        <div className="border-t border-slate-200/80 pt-6 space-y-3">
-          <h3 className="text-sm font-black text-slate-900">Privacy Controls</h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-900">Public Proof Profile</p>
-              <p className="text-[11px] font-medium text-slate-500">Allow recruiters to view your verified evidence graph at launchproof.app/u/alex-chen</p>
-            </div>
-            <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-slate-300 bg-white text-slate-900 focus:ring-slate-900" />
+        {/* Engine Security & Verification */}
+        <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 space-y-4 shadow-md">
+          <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+            <ShieldCheck className="h-4 w-4 text-slate-900" />
+            <span>System Verification & Status</span>
           </div>
-        </div>
 
-        {/* Data Removal */}
-        <div className="border-t border-slate-200/80 pt-6 space-y-3">
-          <h3 className="text-sm font-black text-rose-700">Danger Zone</h3>
-          <div className="flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50/50 backdrop-blur-md p-5 shadow-xs">
-            <div>
-              <p className="text-xs font-black text-slate-900">Delete Account & Résumé Data</p>
-              <p className="text-[11px] font-medium text-slate-500">Permanently remove all saved jobs, résumé text, and evidence graph data.</p>
+          <div className="space-y-3 text-xs">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold">
+              <span>Evidence Classifier Status:</span>
+              <span>ONLINE (100% Client Sync)</span>
             </div>
-            <button className="flex items-center gap-1.5 rounded-xl bg-rose-600/90 backdrop-blur-md px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition-colors shadow-md shadow-rose-500/20">
-              <Trash2 className="h-4 w-4" />
-              <span>Delete Account</span>
-            </button>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-800 font-bold">
+              <span>PDF & TXT Parser:</span>
+              <span>Intelligent Stream Reader Active</span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-800 font-bold">
+              <span>Next.js Production Build:</span>
+              <span>v14.2.35 (Pre-compiled)</span>
+            </div>
           </div>
         </div>
       </div>
