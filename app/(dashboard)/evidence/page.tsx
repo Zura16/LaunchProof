@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { loadAppState, saveAppState } from '@/lib/store/app-store'
 import { scanGitHubRepository, ScannedRepoResult } from '@/lib/services/github-scanner.service'
-import { ShieldCheck, FileCode, Github, Plus, Sparkles, CheckCircle2, RefreshCw } from 'lucide-react'
+import { ShieldCheck, FileCode, Github, Plus, Sparkles, CheckCircle2, RefreshCw, Copy, Check, Code } from 'lucide-react'
 
 export default function EvidencePage() {
   const [skills, setSkills] = useState<string[]>([])
@@ -11,6 +11,7 @@ export default function EvidencePage() {
   const [isScanning, setIsScanning] = useState(false)
   const [lastScanResult, setLastScanResult] = useState<ScannedRepoResult | null>(null)
   const [showScanModal, setShowScanModal] = useState(false)
+  const [copiedBadgeIndex, setCopiedBadgeIndex] = useState<number | null>(null)
 
   useEffect(() => {
     const state = loadAppState()
@@ -36,6 +37,13 @@ export default function EvidencePage() {
       setShowScanModal(false)
       setRepoUrlInput('')
     }, 700)
+  }
+
+  const handleCopyBadge = (skill: string, index: number) => {
+    const markdown = `[![LaunchProof Verified](https://img.shields.io/badge/LaunchProof_Verified-${encodeURIComponent(skill)}-0f172a?style=for-the-badge&logo=github)](http://localhost:3000/profile)`
+    navigator.clipboard.writeText(markdown)
+    setCopiedBadgeIndex(index)
+    setTimeout(() => setCopiedBadgeIndex(null), 2000)
   }
 
   return (
@@ -114,6 +122,37 @@ export default function EvidencePage() {
           </div>
         </div>
       )}
+
+      {/* Exportable README Verification Badges Section */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 space-y-4 shadow-md">
+        <div className="flex items-center justify-between border-b border-slate-100/80 pb-3">
+          <div>
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <Code className="h-4 w-4 text-slate-900" />
+              <span>Exportable GitHub README Verification Badges</span>
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Click any badge to copy GitHub Markdown embed snippet.</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          {skills.map((skill, idx) => (
+            <button
+              key={skill}
+              onClick={() => handleCopyBadge(skill, idx)}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-900 bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition-all cursor-pointer"
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Verified: {skill}</span>
+              {copiedBadgeIndex === idx ? (
+                <Check className="h-3.5 w-3.5 text-emerald-400 ml-1" />
+              ) : (
+                <Copy className="h-3 w-3 text-slate-400 ml-1" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Skill Cards Grid */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
