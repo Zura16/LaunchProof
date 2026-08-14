@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react'
 import { loadAppState, saveAppState } from '@/lib/store/app-store'
 import { SavedJobData } from '@/lib/services/seed-data.service'
 import Link from 'next/link'
-import { Plus, ExternalLink, CheckCircle2, MapPin, Building2, Trash2, Briefcase, Sparkles, X, Target, ArrowRight } from 'lucide-react'
+import { Plus, ExternalLink, CheckCircle2, MapPin, Building2, Trash2, Briefcase, Sparkles, X, Target, ArrowRight, Columns } from 'lucide-react'
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<SavedJobData[]>([])
   const [selectedMatchJob, setSelectedMatchJob] = useState<SavedJobData | null>(null)
+  const [showComparison, setShowComparison] = useState(false)
 
   useEffect(() => {
     const state = loadAppState()
@@ -31,14 +32,65 @@ export default function JobsPage() {
             Saved job listings analyzed against your personal evidence graph.
           </p>
         </div>
-        <Link
-          href="/jobs/new"
-          className="glass-btn-primary"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Save New Job</span>
-        </Link>
+
+        <div className="flex items-center gap-3">
+          {jobs.length >= 2 && (
+            <button
+              onClick={() => setShowComparison(!showComparison)}
+              className="glass-btn-secondary py-2.5 px-4 text-xs font-bold"
+            >
+              <Columns className="h-4 w-4 text-slate-900" />
+              <span>{showComparison ? 'Hide Comparison' : 'Compare Jobs Side-by-Side'}</span>
+            </button>
+          )}
+
+          <Link
+            href="/jobs/new"
+            className="glass-btn-primary py-2.5 px-4 text-xs font-bold"
+          >
+            <Plus className="h-4 w-4 text-white" />
+            <span>Save New Job</span>
+          </Link>
+        </div>
       </div>
+
+      {/* Side-by-Side Comparison Matrix */}
+      {showComparison && jobs.length >= 2 && (
+        <div className="rounded-3xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100/80 pb-3">
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <Columns className="h-4 w-4 text-slate-900" />
+              <span>Side-by-Side Target Job Comparison Matrix</span>
+            </h3>
+            <button onClick={() => setShowComparison(false)} className="text-xs text-slate-400 hover:text-slate-900">
+              Close
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-x-auto">
+            {jobs.slice(0, 3).map((j) => (
+              <div key={j.id} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 space-y-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">{j.company}</span>
+                <h4 className="font-black text-slate-900 text-sm">{j.title}</h4>
+                <div className="text-xs text-slate-600 space-y-1 border-t border-slate-200/80 pt-2">
+                  <p><strong className="text-slate-900">Location:</strong> {j.location}</p>
+                  <p><strong className="text-slate-900">Graduation Window:</strong> {j.eligibility?.graduationWindow || 'Verified'}</p>
+                </div>
+                <div className="space-y-1 border-t border-slate-200/80 pt-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Top Requirements:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {j.requirements.map((r, idx) => (
+                      <span key={idx} className="rounded bg-white px-2 py-0.5 text-[10px] font-bold border border-slate-200">
+                        {r.skillName}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Deep Match Score Modal */}
       {selectedMatchJob && (
