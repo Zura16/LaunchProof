@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { loadAppState } from '@/lib/store/app-store'
-import { Filter, BarChart3, ShieldCheck, AlertCircle } from 'lucide-react'
+import { Filter, BarChart3, ShieldCheck, DollarSign, Calculator, TrendingUp } from 'lucide-react'
 
 export default function MarketInsightsPage() {
   const [activeCategory, setActiveCategory] = useState('ALL')
   const [savedJobsCount, setSavedJobsCount] = useState(12)
   const [userSkills, setUserSkills] = useState<string[]>([])
+  const [selectedLocation, setSelectedLocation] = useState('San Francisco, CA')
 
   useEffect(() => {
     const state = loadAppState()
@@ -36,6 +37,11 @@ export default function MarketInsightsPage() {
     return item.category === activeCategory
   })
 
+  // Salary calculations based on location
+  const salaryMultiplier = selectedLocation.includes('San Francisco') ? 1.25 : selectedLocation.includes('New York') ? 1.2 : 1.0
+  const baseSalaryEst = Math.round(115000 * salaryMultiplier)
+  const equityEst = Math.round(25000 * salaryMultiplier)
+
   return (
     <div className="space-y-6 pb-12">
       <div className="border-b border-slate-200/80 pb-4">
@@ -46,6 +52,44 @@ export default function MarketInsightsPage() {
         <p className="text-xs text-slate-500 font-medium mt-1">
           Aggregated demand patterns across your target software engineering postings vs your evidence graph.
         </p>
+      </div>
+
+      {/* Target Market Compensation Estimator */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 space-y-4 shadow-md">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b border-slate-100/80 pb-3">
+          <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+            <Calculator className="h-4 w-4 text-slate-900" />
+            <span>Target Market Compensation Estimator</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">Location:</span>
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="rounded-xl border border-slate-200/80 bg-slate-50 p-1.5 text-xs font-bold text-slate-900 focus:outline-none"
+            >
+              <option value="San Francisco, CA">San Francisco, CA (Tier 1)</option>
+              <option value="New York, NY">New York, NY (Tier 1)</option>
+              <option value="Remote (US)">Remote (US Tier 2)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-xl bg-slate-50 p-4 border border-slate-200/80">
+            <span className="text-xs font-bold text-slate-500">Estimated Base Salary</span>
+            <p className="text-2xl font-black text-slate-900 mt-1">${baseSalaryEst.toLocaleString()} / yr</p>
+          </div>
+          <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-200">
+            <span className="text-xs font-bold text-emerald-800">Estimated Annual Equity/RSU</span>
+            <p className="text-2xl font-black text-emerald-950 mt-1">${equityEst.toLocaleString()} / yr</p>
+          </div>
+          <div className="rounded-xl bg-slate-100 p-4 border border-slate-300">
+            <span className="text-xs font-bold text-slate-700">Total Compensation Range</span>
+            <p className="text-2xl font-black text-slate-900 mt-1">${(baseSalaryEst + equityEst).toLocaleString()} / yr</p>
+          </div>
+        </div>
       </div>
 
       {/* Filter Category Pills */}
