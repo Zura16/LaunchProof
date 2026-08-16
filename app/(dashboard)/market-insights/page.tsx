@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { loadAppState } from '@/lib/store/app-store'
-import { Filter, BarChart3, ShieldCheck, DollarSign, Calculator, TrendingUp } from 'lucide-react'
+import { Filter, BarChart3, ShieldCheck, DollarSign, Calculator, Grid, Building2 } from 'lucide-react'
 
 export default function MarketInsightsPage() {
   const [activeCategory, setActiveCategory] = useState('ALL')
@@ -17,6 +17,18 @@ export default function MarketInsightsPage() {
   }, [])
 
   const categories = ['ALL', 'CRITICAL GAPS', 'VERIFIED STRENGTHS', 'LANGUAGES', 'FRAMEWORKS', 'DATABASES', 'CLOUD']
+
+  const targetCompanies = ['Stripe', 'Meta', 'Amazon', 'Apple', 'Netflix']
+  const heatmapSkills = ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'Docker', 'Redis', 'System Design']
+
+  // Company matrix data
+  const companySkillMatrix: Record<string, Record<string, boolean>> = {
+    Stripe: { TypeScript: true, React: true, 'Node.js': true, PostgreSQL: true, Docker: true, Redis: true, 'System Design': true },
+    Meta: { TypeScript: true, React: true, 'Node.js': false, PostgreSQL: false, Docker: true, Redis: true, 'System Design': true },
+    Amazon: { TypeScript: false, React: true, 'Node.js': true, PostgreSQL: true, Docker: true, Redis: true, 'System Design': true },
+    Apple: { TypeScript: true, React: true, 'Node.js': true, PostgreSQL: true, Docker: false, Redis: false, 'System Design': true },
+    Netflix: { TypeScript: true, React: true, 'Node.js': true, PostgreSQL: true, Docker: true, Redis: true, 'System Design': true },
+  }
 
   const allMarketSkills = [
     { skillName: 'REST APIs', category: 'FRAMEWORKS', freq: 75, status: 'STRONG', priority: 'STRENGTH' },
@@ -52,6 +64,64 @@ export default function MarketInsightsPage() {
         <p className="text-xs text-slate-500 font-medium mt-1">
           Aggregated demand patterns across your target software engineering postings vs your evidence graph.
         </p>
+      </div>
+
+      {/* Target Company Skill Matrix Heatmap */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 space-y-4 shadow-md overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100/80 pb-3">
+          <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+            <Grid className="h-4 w-4 text-slate-900" />
+            <span>Target Company Skill Matrix Heatmap</span>
+          </div>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Green = Verified Candidate Proof • Red = Market Skill Gap
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
+                <th className="py-2.5 px-3">Company</th>
+                {heatmapSkills.map((s) => (
+                  <th key={s} className="py-2.5 px-3 text-center">{s}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium">
+              {targetCompanies.map((company) => (
+                <tr key={company} className="hover:bg-slate-50 transition-colors">
+                  <td className="py-3 px-3 font-black text-slate-900 flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-slate-700" />
+                    <span>{company}</span>
+                  </td>
+                  {heatmapSkills.map((skill) => {
+                    const isRequired = companySkillMatrix[company]?.[skill]
+                    const hasProof = userSkills.includes(skill)
+
+                    if (!isRequired) {
+                      return <td key={skill} className="py-3 px-3 text-center text-slate-300 font-mono text-[10px]">N/A</td>
+                    }
+
+                    return (
+                      <td key={skill} className="py-3 px-3 text-center">
+                        <span
+                          className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-black ${
+                            hasProof
+                              ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                              : 'bg-rose-100 text-rose-900 border border-rose-300'
+                          }`}
+                        >
+                          {hasProof ? 'VERIFIED' : 'GAP'}
+                        </span>
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Target Market Compensation Estimator */}
