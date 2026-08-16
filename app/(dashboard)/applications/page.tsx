@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { loadAppState, saveAppState } from '@/lib/store/app-store'
 import { ApplicationTrackerData } from '@/lib/services/seed-data.service'
-import { Send, Plus, Trash2, CheckCircle2, FileText, Building2, ChevronDown } from 'lucide-react'
+import { Send, Plus, Trash2, CheckCircle2, FileText, Building2, Calendar } from 'lucide-react'
 
 export default function ApplicationsPage() {
   const [apps, setApps] = useState<ApplicationTrackerData[]>([])
@@ -13,11 +13,39 @@ export default function ApplicationsPage() {
   const [status, setStatus] = useState<ApplicationTrackerData['status']>('PREPARING')
   const [resumeVersion, setResumeVersion] = useState('v1_Backend_Focus.pdf')
   const [notes, setNotes] = useState('')
+  const [copiedIcs, setCopiedIcs] = useState(false)
 
   useEffect(() => {
     const state = loadAppState()
     setApps(state.applications || [])
   }, [])
+
+  const handleExportIcs = () => {
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//LaunchProof//Career Deadlines//EN
+${apps
+  .map(
+    (a, i) => `BEGIN:VEVENT
+SUMMARY:Interview / Follow-up: ${a.company} (${a.title})
+DESCRIPTION:Pipeline Status: ${a.status}. Resume: ${a.resumeVersion}
+DTSTART;VALUE=DATE:20260820
+DTEND;VALUE=DATE:20260821
+END:VEVENT`
+  )
+  .join('\n')}
+END:VCALENDAR`
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'LaunchProof_Interview_Deadlines.ics'
+    link.click()
+    URL.revokeObjectURL(url)
+    setCopiedIcs(true)
+    setTimeout(() => setCopiedIcs(false), 2000)
+  }
 
   const handleAddApplication = (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,22 +96,6 @@ export default function ApplicationsPage() {
     saveAppState({ ...state, applications: updated })
   }
 
-  const getStatusBadge = (s: ApplicationTrackerData['status']) => {
-    switch (s) {
-      case 'PREPARING':
-        return <span className="rounded-full bg-amber-50/80 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200 shadow-xs">Preparing</span>
-      case 'APPLIED':
-        return <span className="rounded-full bg-slate-900/90 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">Applied</span>
-      case 'RECRUITER_SCREEN':
-      case 'TECHNICAL_INTERVIEW':
-        return <span className="rounded-full bg-emerald-50/80 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200 shadow-xs">Interview</span>
-      case 'OFFER':
-        return <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">Offer Granted</span>
-      default:
-        return <span className="rounded-full bg-slate-100/80 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-200 shadow-xs">Saved</span>
-    }
-  }
-
   return (
     <div className="space-y-6 pb-12">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-200/80 pb-4">
@@ -96,13 +108,21 @@ export default function ApplicationsPage() {
             Track target job applications, update pipeline statuses, and attach custom résumé versions.
           </p>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="glass-btn-primary py-2.5 px-4"
-        >
-          <Plus className="h-4 w-4 text-white" />
-          <span>Add Application</span>
-        </button>
+
+        <div className="flex items-center gap-3">
+          <button onClick={handleExportIcs} className="glass-btn-secondary py-2.5 px-4 text-xs font-bold">
+            <Calendar className="h-4 w-4 text-slate-900" />
+            <span>{copiedIcs ? 'Calendar iCal (.ics) Exported!' : 'Export Calendar Deadlines (.ics)'}</span>
+          </button>
+
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="glass-btn-primary py-2.5 px-4 text-xs font-bold"
+          >
+            <Plus className="h-4 w-4 text-white" />
+            <span>Add Application</span>
+          </button>
+        </div>
       </div>
 
       {/* Add New Application Form Modal / Card */}
