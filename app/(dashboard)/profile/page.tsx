@@ -3,13 +3,15 @@
 import { useState, useEffect } from 'react'
 import { loadAppState, saveAppState } from '@/lib/store/app-store'
 import { StudentProfileData } from '@/lib/services/seed-data.service'
-import { UserCheck, ExternalLink, ShieldCheck, Eye, EyeOff, Lock } from 'lucide-react'
+import { UserCheck, ExternalLink, ShieldCheck, Eye, EyeOff, Lock, Share2, Copy, Check, X } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<StudentProfileData | any>(null)
   const [showPublicBadges, setShowPublicBadges] = useState(true)
   const [showEmailContact, setShowEmailContact] = useState(true)
+  const [showLinkedInModal, setShowLinkedInModal] = useState(false)
+  const [copiedSharePost, setCopiedSharePost] = useState(false)
 
   useEffect(() => {
     const state = loadAppState()
@@ -22,6 +24,13 @@ export default function ProfilePage() {
 
   const handleToggleEmail = () => {
     setShowEmailContact(!showEmailContact)
+  }
+
+  const handleCopyLinkedInPost = () => {
+    const postText = `🚀 Excited to share my verified LaunchProof Career Proof Profile!\n\nVerified Technical Skill Proofs:\n- React & TypeScript (Verified Codebase Citations)\n- Node.js & PostgreSQL (Multi-Stage Docker & API Pipelines)\n\nRecruiters & Hiring Managers can view my verified source code proof profile here:\nhttp://localhost:3000/u/${profile?.publicSlug || 'my-profile'}\n\n#SoftwareEngineering #Verification #LaunchProof #CS2027`
+    navigator.clipboard.writeText(postText)
+    setCopiedSharePost(true)
+    setTimeout(() => setCopiedSharePost(false), 2000)
   }
 
   if (!profile) return null
@@ -38,15 +47,84 @@ export default function ProfilePage() {
             Your academic background and job targeting preferences.
           </p>
         </div>
-        <Link
-          href={`/u/${profile.publicSlug || 'my-profile'}`}
-          target="_blank"
-          className="glass-btn-primary py-2.5 px-4 text-xs font-bold"
-        >
-          <span>View Public Proof Profile</span>
-          <ExternalLink className="h-3.5 w-3.5" />
-        </Link>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowLinkedInModal(true)}
+            className="glass-btn-secondary py-2.5 px-4 text-xs font-bold"
+          >
+            <Share2 className="h-4 w-4 text-slate-900" />
+            <span>Share to LinkedIn</span>
+          </button>
+
+          <Link
+            href={`/u/${profile.publicSlug || 'my-profile'}`}
+            target="_blank"
+            className="glass-btn-primary py-2.5 px-4 text-xs font-bold"
+          >
+            <span>View Public Proof Profile</span>
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
+
+      {/* LinkedIn Share Modal */}
+      {showLinkedInModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 max-w-xl w-full space-y-6 shadow-2xl relative">
+            <button
+              onClick={() => setShowLinkedInModal(false)}
+              className="absolute top-6 right-6 p-2 rounded-full text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white shadow-xs">
+                <Share2 className="h-3.5 w-3.5 text-white" />
+                <span>LinkedIn Verified Credential Post</span>
+              </div>
+              <h2 className="text-xl font-black text-slate-900">Share Your Verified Evidence Profile</h2>
+              <p className="text-xs text-slate-500 font-medium">Copy this pre-formatted post text to share your proof profile on LinkedIn.</p>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200 text-xs font-mono text-slate-800 space-y-2 leading-relaxed">
+              <p className="font-bold text-slate-900">Post Draft:</p>
+              <p>🚀 Excited to share my verified LaunchProof Career Proof Profile!</p>
+              <p>Verified Technical Skill Proofs:</p>
+              <p>- React & TypeScript (Verified Codebase Citations)</p>
+              <p>- Node.js & PostgreSQL (Multi-Stage Docker & API Pipelines)</p>
+              <p>Recruiters & Hiring Managers can view my verified source code proof profile here:</p>
+              <p className="text-slate-900 font-bold underline">http://localhost:3000/u/{profile.publicSlug || 'my-profile'}</p>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowLinkedInModal(false)}
+                className="glass-btn-secondary py-2 px-4 text-xs"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleCopyLinkedInPost}
+                className="glass-btn-primary py-2 px-5 text-xs font-bold"
+              >
+                {copiedSharePost ? (
+                  <>
+                    <Check className="h-4 w-4 text-emerald-400" />
+                    <span>Post Copied to Clipboard!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 text-white" />
+                    <span>Copy Post Text for LinkedIn</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-8 space-y-6 shadow-xl">
         {/* Personal info */}
