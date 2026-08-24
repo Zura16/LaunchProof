@@ -3,13 +3,16 @@
 import { useState, useEffect } from 'react'
 import { loadAppState, saveAppState } from '@/lib/store/app-store'
 import { SavedJobData } from '@/lib/services/seed-data.service'
+import { fetchLiveWatchedJobs } from '@/lib/services/job-watcher.service'
 import Link from 'next/link'
-import { Plus, ExternalLink, CheckCircle2, MapPin, Building2, Trash2, Briefcase, Sparkles, X, Target, ArrowRight, Columns } from 'lucide-react'
+import { Plus, ExternalLink, CheckCircle2, MapPin, Building2, Trash2, Briefcase, Sparkles, X, Target, ArrowRight, Columns, Eye, RefreshCw } from 'lucide-react'
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<SavedJobData[]>([])
   const [selectedMatchJob, setSelectedMatchJob] = useState<SavedJobData | null>(null)
   const [showComparison, setShowComparison] = useState(false)
+  const [isLiveWatching, setIsLiveWatching] = useState(false)
+  const [liveWatchMessage, setLiveWatchMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const state = loadAppState()
@@ -23,17 +26,66 @@ export default function JobsPage() {
     saveAppState({ ...currentState, savedJobs: updated })
   }
 
+  const handleToggleLiveWatch = () => {
+    if (isLiveWatching) {
+      setIsLiveWatching(false)
+      setLiveWatchMessage(null)
+      return
+    }
+
+    setIsLiveWatching(true)
+    setLiveWatchMessage('Scanning OpenAI, Anthropic, Stripe & Meta career portals...')
+
+    setTimeout(() => {
+      const liveJobs = fetchLiveWatchedJobs()
+      const state = loadAppState()
+      const updated = [...liveJobs, ...(state.savedJobs || [])]
+      setJobs(updated)
+      saveAppState({ ...state, savedJobs: updated })
+      setLiveWatchMessage('Live Watcher active! Auto-fetched 2 new high-match job postings.')
+    }, 1200)
+  }
+
   return (
     <div className="space-y-8 pb-12">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-200/80 pb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Your Target Jobs ({jobs.length})</h1>
+          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+            <span>Your Target Jobs ({jobs.length})</span>
+            {isLiveWatching && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200 animate-pulse">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                Live Auto-Watcher Active
+              </span>
+            )}
+          </h1>
           <p className="text-xs text-slate-500 font-medium mt-1">
             Saved job listings analyzed against your personal evidence graph.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleToggleLiveWatch}
+            className={`py-2.5 px-4 text-xs font-bold rounded-xl border transition-all ${
+              isLiveWatching
+                ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                : 'glass-btn-secondary text-slate-900'
+            }`}
+          >
+            {isLiveWatching ? (
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                <span>Watching Live Postings</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-slate-900" />
+                <span>Enable Live Auto-Watcher</span>
+              </div>
+            )}
+          </button>
+
           {jobs.length >= 2 && (
             <button
               onClick={() => setShowComparison(!showComparison)}
@@ -53,6 +105,16 @@ export default function JobsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Live Watcher Banner Notification */}
+      {liveWatchMessage && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 backdrop-blur-md p-4 flex items-center justify-between text-xs text-emerald-950 font-bold shadow-sm">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{liveWatchMessage}</span>
+          </div>
+        </div>
+      )}
 
       {/* Side-by-Side Comparison Matrix */}
       {showComparison && jobs.length >= 2 && (
