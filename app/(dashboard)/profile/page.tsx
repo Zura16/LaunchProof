@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { loadAppState, saveAppState } from '@/lib/store/app-store'
 import { StudentProfileData } from '@/lib/services/seed-data.service'
-import { UserCheck, ExternalLink, ShieldCheck, Eye, EyeOff, Lock, Share2, Copy, Check, X } from 'lucide-react'
+import { UserCheck, ExternalLink, ShieldCheck, Eye, EyeOff, Lock, Share2, Copy, Check, X, Award } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfilePage() {
@@ -12,6 +12,7 @@ export default function ProfilePage() {
   const [showEmailContact, setShowEmailContact] = useState(true)
   const [showLinkedInModal, setShowLinkedInModal] = useState(false)
   const [copiedSharePost, setCopiedSharePost] = useState(false)
+  const [copiedSeal, setCopiedSeal] = useState(false)
 
   useEffect(() => {
     const state = loadAppState()
@@ -31,6 +32,13 @@ export default function ProfilePage() {
     navigator.clipboard.writeText(postText)
     setCopiedSharePost(true)
     setTimeout(() => setCopiedSharePost(false), 2000)
+  }
+
+  const handleCopyVerificationSeal = () => {
+    const sealCode = `<a href="http://localhost:3000/u/${profile?.publicSlug || 'my-profile'}"><img src="https://img.shields.io/badge/LaunchProof_Verified_Candidate-0f172a?style=for-the-badge&logo=shield" alt="Verified Candidate" /></a>`
+    navigator.clipboard.writeText(sealCode)
+    setCopiedSeal(true)
+    setTimeout(() => setCopiedSeal(false), 2000)
   }
 
   if (!profile) return null
@@ -65,6 +73,43 @@ export default function ProfilePage() {
             <span>View Public Proof Profile</span>
             <ExternalLink className="h-3.5 w-3.5" />
           </Link>
+        </div>
+      </div>
+
+      {/* Digital Verification Seals Generator */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 space-y-4 shadow-md">
+        <div className="flex items-center justify-between border-b border-slate-100/80 pb-3">
+          <div>
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <Award className="h-4 w-4 text-slate-900" />
+              <span>Digital Verification Credential Seal</span>
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Embed your official LaunchProof candidate seal on your personal site or portfolio.</p>
+          </div>
+
+          <button onClick={handleCopyVerificationSeal} className="glass-btn-primary py-2 px-4 text-xs font-bold">
+            {copiedSeal ? (
+              <>
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                <span>HTML Seal Code Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5 text-white" />
+                <span>Copy HTML Seal Snippet</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="inline-flex items-center gap-3 rounded-2xl bg-slate-900 text-white p-4 border border-slate-700 shadow-md">
+          <div className="h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40">
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider text-emerald-400">LaunchProof Verified Candidate</p>
+            <p className="text-[11px] text-slate-300 font-medium">Verified Source Code Citations • {profile.university}</p>
+          </div>
         </div>
       </div>
 
