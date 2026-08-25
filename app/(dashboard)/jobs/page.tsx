@@ -70,7 +70,11 @@ export default async function JobsPage() {
                     {saved.jobPosting.requirements.length > 0 ? (
                       `${saved.jobPosting.requirements.length} extracted`
                     ) : (
-                      <Badge variant="outline">Analysis pending</Badge>
+                      <Link href={`/jobs/${saved.id}`}>
+                        <Badge variant="outline" className="cursor-pointer hover:bg-slate-100">
+                          Analyze now
+                        </Badge>
+                      </Link>
                     )}
                   </TableCell>
                   <TableCell>

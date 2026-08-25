@@ -6,6 +6,8 @@ import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
 import { manualJobSchema } from '@/schemas/onboarding'
 import { createManualSavedJob } from '@/lib/services/saved-jobs.service'
+import { analyzeJobPosting } from '@/lib/services/job-analysis.service'
+import { AIAnalysisError } from '@/lib/ai/generate-structured'
 import type { ActionState } from '@/app/onboarding/actions'
 
 export async function addJobAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -53,4 +55,22 @@ export async function markAppliedAction(savedJobId: string) {
   }
   revalidatePath(`/jobs/${savedJobId}`)
   revalidatePath('/applications')
+}
+
+export async function analyzeJobAction(savedJobId: string) {
+  const user = await requireUser()
+  const saved = await prisma.savedJob.findUnique({ where: { id: savedJobId } })
+  if (!saved || saved.userId !== user.id) return
+
+  try {
+    await analyzeJobPosting(saved.jobPostingId)
+  } catch (e) {
+    const message = e instanceof AIAnalysisError ? e.message : 'Job analysis failed unexpectedly.'
+    redirect(`/jobs/${savedJobId}?analysisError=${encodeURIComponent(message)}`)
+  }
+
+  revalidatePath(`/jobs/${savedJobId}`)
+  revalidatePath('/jobs')
+  revalidatePath('/market-insights')
+  redirect(`/jobs/${savedJobId}`)
 }

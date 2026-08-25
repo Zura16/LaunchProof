@@ -1,13 +1,15 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ExternalLink, CheckCircle2, Trash2 } from 'lucide-react'
+import { ExternalLink, CheckCircle2, Trash2, AlertTriangle } from 'lucide-react'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EmptyState } from '@/components/shared/empty-state'
+import { Tooltip } from '@/components/ui/tooltip'
 import { deleteSavedJobAction, markAppliedAction } from '@/app/(dashboard)/jobs/actions'
+import { AnalyzeJobButton } from '@/components/jobs/analyze-job-button'
 import type { RequirementType } from '@prisma/client'
 
 const GROUPS: { type: RequirementType; label: string }[] = [
@@ -17,7 +19,13 @@ const GROUPS: { type: RequirementType; label: string }[] = [
   { type: 'ELIGIBILITY', label: 'Eligibility' },
 ]
 
-export default async function JobDetailPage({ params }: { params: { id: string } }) {
+export default async function JobDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams: { analysisError?: string }
+}) {
   const user = await requireUser()
 
   const saved = await prisma.savedJob.findUnique({
@@ -34,6 +42,15 @@ export default async function JobDetailPage({ params }: { params: { id: string }
 
   return (
     <div className="space-y-6">
+      {searchParams.analysisError && (
+        <Card className="border-red-200 bg-red-50/50">
+          <CardContent className="flex items-start gap-2 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            <p className="text-xs text-red-800">{searchParams.analysisError}</p>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
@@ -81,14 +98,18 @@ export default async function JobDetailPage({ params }: { params: { id: string }
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle>Requirements</CardTitle>
+          {jobPosting.requirements.length > 0 && (
+            <span className="text-xs text-slate-400">{jobPosting.requirements.length} skills extracted</span>
+          )}
         </CardHeader>
         <CardContent>
           {jobPosting.requirements.length === 0 ? (
             <EmptyState
               title="Requirement extraction pending"
-              description="Structured skill extraction from this job description hasn't run yet."
+              description="Run analysis to extract required, preferred, responsibility, and eligibility skills from this job description."
+              action={<AnalyzeJobButton savedJobId={saved.id} />}
             />
           ) : (
             <div className="space-y-4">
@@ -100,9 +121,9 @@ export default async function JobDetailPage({ params }: { params: { id: string }
                     <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">{g.label}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {items.map((r) => (
-                        <Badge key={r.id} variant="outline">
-                          {r.skill.name}
-                        </Badge>
+                        <Tooltip key={r.id} content={`"${r.rawMention}" · ${r.importance.toLowerCase()} importance`}>
+                          <Badge variant="outline">{r.skill.name}</Badge>
+                        </Tooltip>
                       ))}
                     </div>
                   </div>
