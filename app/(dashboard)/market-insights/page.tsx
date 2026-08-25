@@ -1,248 +1,109 @@
-'use client'
+import Link from 'next/link'
+import { BarChart3 } from 'lucide-react'
+import { requireUser } from '@/lib/auth/require-user'
+import { prisma } from '@/lib/db/prisma'
+import { getMarketInsights } from '@/lib/services/market-insights.service'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/shared/empty-state'
+import { EvidenceBadge } from '@/components/shared/evidence-badge'
+import { cn } from '@/lib/utils'
 
-import { useState, useEffect } from 'react'
-import { loadAppState } from '@/lib/store/app-store'
-import { Filter, BarChart3, ShieldCheck, DollarSign, Calculator, Grid, Building2 } from 'lucide-react'
+const FILTERS = [
+  { key: 'all', label: 'All skills' },
+  { key: 'missing', label: 'Missing' },
+  { key: 'weak', label: 'Weak' },
+  { key: 'strong', label: 'Strong' },
+  { key: 'required', label: 'Required frequently' },
+] as const
 
-export default function MarketInsightsPage() {
-  const [activeCategory, setActiveCategory] = useState('ALL')
-  const [savedJobsCount, setSavedJobsCount] = useState(12)
-  const [userSkills, setUserSkills] = useState<string[]>([])
-  const [selectedLocation, setSelectedLocation] = useState('San Francisco, CA')
+const PRIORITY_VARIANT = { High: 'destructive', Medium: 'warning', Low: 'outline' } as const
 
-  useEffect(() => {
-    const state = loadAppState()
-    setSavedJobsCount(state.savedJobs?.length || 12)
-    setUserSkills(state.customSkills || ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'REST APIs'])
-  }, [])
+export default async function MarketInsightsPage({ searchParams }: { searchParams: { filter?: string } }) {
+  const user = await requireUser()
+  const savedJobCount = await prisma.savedJob.count({ where: { userId: user.id } })
 
-  const categories = ['ALL', 'CRITICAL GAPS', 'VERIFIED STRENGTHS', 'LANGUAGES', 'FRAMEWORKS', 'DATABASES', 'CLOUD']
-
-  const targetCompanies = ['Stripe', 'Meta', 'Amazon', 'Apple', 'Netflix']
-  const heatmapSkills = ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'Docker', 'Redis', 'System Design']
-
-  // Company matrix data
-  const companySkillMatrix: Record<string, Record<string, boolean>> = {
-    Stripe: { TypeScript: true, React: true, 'Node.js': true, PostgreSQL: true, Docker: true, Redis: true, 'System Design': true },
-    Meta: { TypeScript: true, React: true, 'Node.js': false, PostgreSQL: false, Docker: true, Redis: true, 'System Design': true },
-    Amazon: { TypeScript: false, React: true, 'Node.js': true, PostgreSQL: true, Docker: true, Redis: true, 'System Design': true },
-    Apple: { TypeScript: true, React: true, 'Node.js': true, PostgreSQL: true, Docker: false, Redis: false, 'System Design': true },
-    Netflix: { TypeScript: true, React: true, 'Node.js': true, PostgreSQL: true, Docker: true, Redis: true, 'System Design': true },
+  if (savedJobCount < 3) {
+    return (
+      <EmptyState
+        icon={<BarChart3 className="h-5 w-5" />}
+        title="Save a few more target jobs to identify meaningful patterns"
+        description={`You have ${savedJobCount} saved job${savedJobCount === 1 ? '' : 's'}. Market Insights needs at least 3 to surface recurring skill demand.`}
+        action={
+          <Link href="/jobs/new">
+            <Button size="sm">Add Target Job</Button>
+          </Link>
+        }
+      />
+    )
   }
 
-  const allMarketSkills = [
-    { skillName: 'REST APIs', category: 'FRAMEWORKS', freq: 75, status: 'STRONG', priority: 'STRENGTH' },
-    { skillName: 'TypeScript', category: 'LANGUAGES', freq: 67, status: 'STRONG', priority: 'STRENGTH' },
-    { skillName: 'React', category: 'FRAMEWORKS', freq: 67, status: 'STRONG', priority: 'STRENGTH' },
-    { skillName: 'Node.js', category: 'FRAMEWORKS', freq: 58, status: 'STRONG', priority: 'STRENGTH' },
-    { skillName: 'PostgreSQL', category: 'DATABASES', freq: 50, status: 'STRONG', priority: 'STRENGTH' },
-    { skillName: 'Docker', category: 'CLOUD', freq: 50, status: userSkills.includes('Docker') ? 'STRONG' : 'MISSING', priority: 'CRITICAL GAPS' },
-    { skillName: 'Redis', category: 'DATABASES', freq: 42, status: userSkills.includes('Redis') ? 'STRONG' : 'MISSING', priority: 'CRITICAL GAPS' },
-    { skillName: 'CI/CD', category: 'CLOUD', freq: 33, status: userSkills.includes('CI/CD') ? 'STRONG' : 'MISSING', priority: 'CRITICAL GAPS' },
-    { skillName: 'Python', category: 'LANGUAGES', freq: 33, status: userSkills.includes('Python') ? 'STRONG' : 'MODERATE', priority: 'VERIFIED STRENGTHS' },
-  ]
-
-  const filteredSkills = allMarketSkills.filter((item) => {
-    if (activeCategory === 'ALL') return true
-    if (activeCategory === 'CRITICAL GAPS') return item.status === 'MISSING'
-    if (activeCategory === 'VERIFIED STRENGTHS') return item.status === 'STRONG'
-    return item.category === activeCategory
+  const rows = await getMarketInsights(user.id)
+  const filter = searchParams.filter ?? 'all'
+  const filtered = rows.filter((r) => {
+    if (filter === 'missing') return r.evidenceStrength === 'MISSING'
+    if (filter === 'weak') return r.evidenceStrength === 'WEAK'
+    if (filter === 'strong') return r.evidenceStrength === 'STRONG'
+    if (filter === 'required') return r.requiredCount >= 3
+    return true
   })
 
-  // Salary calculations based on location
-  const salaryMultiplier = selectedLocation.includes('San Francisco') ? 1.25 : selectedLocation.includes('New York') ? 1.2 : 1.0
-  const baseSalaryEst = Math.round(115000 * salaryMultiplier)
-  const equityEst = Math.round(25000 * salaryMultiplier)
-
   return (
-    <div className="space-y-6 pb-12">
-      <div className="border-b border-slate-200/80 pb-4">
-        <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-          <BarChart3 className="h-6 w-6 text-slate-900" />
-          <span>Target Market Analysis ({savedJobsCount} Saved Jobs)</span>
-        </h1>
-        <p className="text-xs text-slate-500 font-medium mt-1">
-          Aggregated demand patterns across your target software engineering postings vs your evidence graph.
-        </p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {FILTERS.map((f) => (
+          <Link
+            key={f.key}
+            href={f.key === 'all' ? '/market-insights' : `/market-insights?filter=${f.key}`}
+            className={cn(
+              'rounded-full border px-3 py-1 text-xs font-medium',
+              filter === f.key ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            )}
+          >
+            {f.label}
+          </Link>
+        ))}
       </div>
 
-      {/* Target Company Skill Matrix Heatmap */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 space-y-4 shadow-md overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-100/80 pb-3">
-          <div className="flex items-center gap-2 text-sm font-black text-slate-900">
-            <Grid className="h-4 w-4 text-slate-900" />
-            <span>Target Company Skill Matrix Heatmap</span>
-          </div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Green = Verified Candidate Proof • Red = Market Skill Gap
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
-                <th className="py-2.5 px-3">Company</th>
-                {heatmapSkills.map((s) => (
-                  <th key={s} className="py-2.5 px-3 text-center">{s}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {targetCompanies.map((company) => (
-                <tr key={company} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-3 px-3 font-black text-slate-900 flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 text-slate-700" />
-                    <span>{company}</span>
-                  </td>
-                  {heatmapSkills.map((skill) => {
-                    const isRequired = companySkillMatrix[company]?.[skill]
-                    const hasProof = userSkills.includes(skill)
-
-                    if (!isRequired) {
-                      return <td key={skill} className="py-3 px-3 text-center text-slate-300 font-mono text-[10px]">N/A</td>
-                    }
-
-                    return (
-                      <td key={skill} className="py-3 px-3 text-center">
-                        <span
-                          className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-black ${
-                            hasProof
-                              ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                              : 'bg-rose-100 text-rose-900 border border-rose-300'
-                          }`}
-                        >
-                          {hasProof ? 'VERIFIED' : 'GAP'}
-                        </span>
-                      </td>
-                    )
-                  })}
-                </tr>
+      {filtered.length === 0 ? (
+        <EmptyState title="No skills match this filter" description="Try a different filter, or save more target jobs." />
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-white">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Skill</TableHead>
+                <TableHead>Jobs mentioning</TableHead>
+                <TableHead>Frequency</TableHead>
+                <TableHead>Required</TableHead>
+                <TableHead>Preferred</TableHead>
+                <TableHead>Evidence</TableHead>
+                <TableHead>Priority</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((r) => (
+                <TableRow key={r.skillId}>
+                  <TableCell className="font-medium text-slate-900">{r.skillName}</TableCell>
+                  <TableCell>
+                    {r.jobsMentioning} / {r.totalJobs}
+                  </TableCell>
+                  <TableCell>{r.frequencyPercent}%</TableCell>
+                  <TableCell>{r.requiredCount}</TableCell>
+                  <TableCell>{r.preferredCount}</TableCell>
+                  <TableCell>
+                    <EvidenceBadge strength={r.evidenceStrength} />
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={PRIORITY_VARIANT[r.priority]}>{r.priority}</Badge>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
-      </div>
-
-      {/* Target Market Compensation Estimator */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 space-y-4 shadow-md">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b border-slate-100/80 pb-3">
-          <div className="flex items-center gap-2 text-sm font-black text-slate-900">
-            <Calculator className="h-4 w-4 text-slate-900" />
-            <span>Target Market Compensation Estimator</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-500">Location:</span>
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              className="rounded-xl border border-slate-200/80 bg-slate-50 p-1.5 text-xs font-bold text-slate-900 focus:outline-none"
-            >
-              <option value="San Francisco, CA">San Francisco, CA (Tier 1)</option>
-              <option value="New York, NY">New York, NY (Tier 1)</option>
-              <option value="Remote (US)">Remote (US Tier 2)</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-xl bg-slate-50 p-4 border border-slate-200/80">
-            <span className="text-xs font-bold text-slate-500">Estimated Base Salary</span>
-            <p className="text-2xl font-black text-slate-900 mt-1">${baseSalaryEst.toLocaleString()} / yr</p>
-          </div>
-          <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-200">
-            <span className="text-xs font-bold text-emerald-800">Estimated Annual Equity/RSU</span>
-            <p className="text-2xl font-black text-emerald-950 mt-1">${equityEst.toLocaleString()} / yr</p>
-          </div>
-          <div className="rounded-xl bg-slate-100 p-4 border border-slate-300">
-            <span className="text-xs font-bold text-slate-700">Total Compensation Range</span>
-            <p className="text-2xl font-black text-slate-900 mt-1">${(baseSalaryEst + equityEst).toLocaleString()} / yr</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Category Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200/80">
-        <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Filter Category:</span>
-        <div className="flex items-center gap-1.5">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={activeCategory === cat ? 'mobbin-pill-active' : 'mobbin-pill'}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 shadow-xl space-y-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 shadow-xs">
-            <span className="text-xs font-bold text-slate-500">Total Saved Jobs</span>
-            <p className="text-2xl font-black text-slate-900 mt-1">{savedJobsCount}</p>
-          </div>
-          <div className="rounded-xl border border-slate-300/80 bg-slate-100/80 p-4 shadow-xs">
-            <span className="text-xs font-bold text-slate-500">Top Market Skill</span>
-            <p className="text-2xl font-black text-slate-900 mt-1">REST APIs (75%)</p>
-          </div>
-          <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-4 shadow-xs">
-            <span className="text-xs font-bold text-slate-500">Top Evidence Gap</span>
-            <p className="text-2xl font-black text-rose-700 mt-1">Docker & CI/CD</p>
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-xs">
-            <span className="text-xs font-bold text-slate-500">Strongest Evidence</span>
-            <p className="text-2xl font-black text-emerald-800 mt-1">React & TypeScript</p>
-          </div>
-        </div>
-
-        {/* Detailed Table */}
-        <div className="overflow-x-auto rounded-xl border border-slate-200/80">
-          <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50/80 backdrop-blur-md text-slate-500 font-bold uppercase border-b border-slate-200/80 text-[10px] tracking-wider">
-              <tr>
-                <th className="px-4 py-3">Skill Name</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Market Demand %</th>
-                <th className="px-4 py-3">Evidence Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100/80 bg-white font-medium">
-              {filteredSkills.map((item) => (
-                <tr key={item.skillName} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-4 py-3 font-black text-slate-900">{item.skillName}</td>
-                  <td className="px-4 py-3 font-mono text-slate-500">{item.category}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-black text-slate-900">{item.freq}%</span>
-                      <div className="h-2 w-20 rounded-full bg-slate-100 border border-slate-200 overflow-hidden">
-                        <div
-                          className="h-full bg-slate-900 rounded-full"
-                          style={{ width: `${item.freq}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border shadow-xs ${
-                        item.status === 'STRONG'
-                          ? 'bg-emerald-50/80 backdrop-blur-md text-emerald-800 border-emerald-200'
-                          : 'bg-rose-50/80 backdrop-blur-md text-rose-800 border-rose-200'
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

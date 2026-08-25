@@ -1,202 +1,129 @@
-'use client'
+import { notFound } from 'next/navigation'
+import { CheckCircle2, Circle } from 'lucide-react'
+import { requireUser } from '@/lib/auth/require-user'
+import { prisma } from '@/lib/db/prisma'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { toggleMilestoneAction } from '@/app/(dashboard)/projects/actions'
+import { cn } from '@/lib/utils'
 
-import { useState, useEffect } from 'react'
-import { loadAppState, saveAppState } from '@/lib/store/app-store'
-import { CheckCircle2, Circle, ArrowLeft, ShieldCheck, Target, ListChecks, Sparkles, Terminal } from 'lucide-react'
-import Link from 'next/link'
+export default async function ProjectPlanDetailPage({ params }: { params: { id: string } }) {
+  const user = await requireUser()
 
-export default function ProjectDetailPage() {
-  const [plan, setPlan] = useState(() => loadAppState().projectPlan)
+  const plan = await prisma.projectPlan.findUnique({
+    where: { id: params.id },
+    include: { milestones: { orderBy: { order: 'asc' } } },
+  })
 
-  useEffect(() => {
-    const current = loadAppState()
-    setPlan(current.projectPlan)
-  }, [])
+  if (!plan || plan.userId !== user.id) notFound()
 
-  const toggleTask = (milestoneOrder: number, taskIndex: number) => {
-    const updatedMilestones = plan.milestones.map((m) => {
-      if (m.order === milestoneOrder) {
-        const updatedTasks = m.tasks.map((t, idx) => {
-          if (idx === taskIndex) {
-            return { ...t, completed: !t.completed }
-          }
-          return t
-        })
-        return { ...m, tasks: updatedTasks }
-      }
-      return m
-    })
-
-    const updatedPlan = { ...plan, milestones: updatedMilestones }
-    setPlan(updatedPlan)
-
-    const currentState = loadAppState()
-    saveAppState({ ...currentState, projectPlan: updatedPlan })
-  }
-
-  // Calculate completed task count
-  const allTasks = plan.milestones.flatMap((m) => m.tasks)
-  const completedCount = allTasks.filter((t) => t.completed).length
-  const progressPercent = Math.round((completedCount / allTasks.length) * 100) || 0
+  const done = plan.milestones.filter((m) => m.isCompleted).length
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Top Header */}
-      <div className="space-y-3 border-b border-slate-200/80 pb-6">
-        <Link
-          href="/projects"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Back to Projects</span>
-        </Link>
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="space-y-4 py-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">{plan.title}</h2>
+              {plan.targetRepoName && <p className="text-xs text-slate-500">Target repository: {plan.targetRepoName}</p>}
+            </div>
+            <Badge variant={plan.status === 'COMPLETED' ? 'success' : 'outline'}>{plan.status.replace('_', ' ')}</Badge>
+          </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black tracking-tight text-slate-900">{plan.title}</h1>
-              <span className="rounded-full bg-slate-900/90 backdrop-blur-md px-3 py-0.5 text-xs font-bold text-white shadow-xs">
-                {plan.difficulty} Difficulty
+            <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
+              <span>
+                {done}/{plan.milestones.length} milestones complete
               </span>
             </div>
-            <p className="mt-1 text-xs font-medium text-slate-500">
-              Upgrading existing repository: <span className="font-mono font-bold text-slate-900">{plan.targetRepoName}</span>
-            </p>
+            <Progress value={done} max={plan.milestones.length || 1} />
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href="/projects/plan-1/git-patch"
-              className="glass-btn-primary py-2.5 px-4 text-xs"
-            >
-              <Terminal className="h-4 w-4 text-white" />
-              <span>Get Git Code Patch</span>
-            </Link>
-
-            <div className="text-right pl-2 border-l border-slate-200/80">
-              <span className="text-xs font-bold text-slate-500">Overall Progress</span>
-              <p className="text-lg font-black text-slate-900">{progressPercent}% Completed</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="h-2.5 w-full rounded-full bg-slate-100/80 border border-slate-200/80 overflow-hidden p-0.5">
-          <div
-            className="h-full bg-slate-900 rounded-full transition-all duration-500 shadow-sm"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Objective</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed text-slate-600">{plan.objective}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Why it matters</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-relaxed text-slate-600">{plan.whyItMatters}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Grid Layout: Objective + Why It Matters + Definition of Done */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-12">
-        <div className="md:col-span-8 space-y-6">
-          {/* Why This Project Matters */}
-          <div className="rounded-2xl border border-slate-300/80 bg-slate-100/80 backdrop-blur-md p-5 space-y-2 shadow-xs">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-900 uppercase tracking-wider">
-              <Sparkles className="h-4 w-4 text-slate-900" />
-              <span>Why This Project Matters (Market Evidence Alignment)</span>
-            </div>
-            <p className="text-xs font-medium text-slate-700 leading-relaxed">{plan.whyItMatters}</p>
-          </div>
-
-          {/* Objective */}
-          <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-5 space-y-2 shadow-sm">
-            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <Target className="h-4 w-4 text-slate-900" />
-              <span>Project Objective</span>
-            </h3>
-            <p className="text-xs font-medium text-slate-600 leading-relaxed">{plan.objective}</p>
-          </div>
-
-          {/* Interactive Milestones & Task Checklist */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <ListChecks className="h-4 w-4 text-slate-900" />
-              <span>Interactive Project Milestones ({plan.milestones.length} Steps)</span>
-            </h3>
-
-            <div className="space-y-4">
-              {plan.milestones.map((m) => (
-                <div
-                  key={m.order}
-                  className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-6 space-y-3 shadow-md"
-                >
-                  <div className="flex items-center justify-between border-b border-slate-100/80 pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white shadow-sm">
-                        {m.order}
-                      </span>
-                      <h4 className="font-black text-slate-900 text-sm">{m.title}</h4>
-                    </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Milestones</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {plan.milestones.map((m) => (
+            <div key={m.id} className="rounded-md border border-slate-100 p-3">
+              <form action={toggleMilestoneAction.bind(null, m.id, plan.id)}>
+                <button type="submit" className="flex w-full items-start gap-2.5 text-left">
+                  {m.isCompleted ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  ) : (
+                    <Circle className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                  )}
+                  <div>
+                    <p className={cn('text-sm font-medium text-slate-900', m.isCompleted && 'text-slate-400 line-through')}>
+                      {m.order}. {m.title}
+                    </p>
+                    <p className="text-xs text-slate-500">{m.description}</p>
                   </div>
-
-                  <p className="text-xs font-medium text-slate-500">{m.description}</p>
-
-                  <div className="space-y-2 pt-1">
-                    {m.tasks.map((task, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => toggleTask(m.order, idx)}
-                        className={`w-full flex items-start gap-2.5 rounded-xl border p-3 text-xs text-left transition-all cursor-pointer shadow-xs ${
-                          task.completed
-                            ? 'border-emerald-200 bg-emerald-50/80 text-emerald-950 font-medium'
-                            : 'border-slate-200/80 bg-slate-50/80 text-slate-800 font-medium hover:border-slate-400 hover:bg-white'
-                        }`}
-                      >
-                        {task.completed ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                        ) : (
-                          <Circle className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-                        )}
-                        <span className={task.completed ? 'line-through text-emerald-800 font-normal' : ''}>
-                          {task.text}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                </button>
+              </form>
+              <ul className="ml-6 mt-2 space-y-1 pl-1">
+                {m.tasks.map((t, i) => (
+                  <li key={i} className="text-xs text-slate-500">
+                    · {t}
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
-        </div>
+          ))}
+        </CardContent>
+      </Card>
 
-        {/* Right Sidebar */}
-        <div className="md:col-span-4 space-y-6">
-          {/* Definition of Done */}
-          <div className="rounded-2xl border border-slate-200/80 bg-white/90 backdrop-blur-xl p-5 space-y-3 shadow-md">
-            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-slate-900" />
-              <span>Definition of Done</span>
-            </h3>
-            <ul className="space-y-2 text-xs font-medium text-slate-700">
-              {plan.definitionOfDone.map((item, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="text-slate-900 font-bold">•</span>
-                  <span>{item}</span>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Definition of Done</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1.5">
+              {plan.definitionOfDone.map((d, i) => (
+                <li key={i} className="text-xs text-slate-600">
+                  · {d}
                 </li>
               ))}
             </ul>
-          </div>
-
-          {/* Evidence Generated */}
-          <div className="rounded-2xl border border-slate-300/80 bg-slate-100/80 backdrop-blur-md p-5 space-y-3 shadow-md">
-            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-slate-900" />
-              <span>Evidence Generated Upon Completion</span>
-            </h3>
-            <div className="space-y-2 text-xs">
-              {plan.expectedEvidence.map((item, i) => (
-                <div
-                  key={i}
-                  className="rounded-xl bg-white/90 backdrop-blur-md p-2.5 text-slate-900 border border-slate-300/80 font-black shadow-xs"
-                >
-                  {item}
-                </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Expected Evidence</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1.5">
+              {plan.expectedEvidence.map((e, i) => (
+                <li key={i} className="text-xs text-slate-600">
+                  · {e}
+                </li>
               ))}
-            </div>
-          </div>
-        </div>
+            </ul>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

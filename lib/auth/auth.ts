@@ -4,8 +4,12 @@ import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/db/prisma"
+import { authConfig } from "@/lib/auth/auth.config"
+
+export const DEMO_ACCOUNT_EMAIL = "alex.chen@example.edu"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   providers: [
@@ -22,36 +26,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
-    // Demo dev credentials login for instant access during testing
+    // Lets anyone explore the fully seeded Alex Chen demo account without
+    // OAuth credentials. Intentionally locked to one fixed, pre-seeded
+    // account rather than accepting an arbitrary email — this is NOT a
+    // general passwordless login.
     Credentials({
       id: "demo",
       name: "Demo Account",
-      credentials: {
-        email: { label: "Email", type: "email" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email) return null
-        
-        // Find existing user or seed user
-        let user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+      credentials: {},
+      async authorize() {
+        const user = await prisma.user.findUnique({
+          where: { email: DEMO_ACCOUNT_EMAIL },
         })
-
-        if (!user) {
-          user = await prisma.user.create({
-            data: {
-              email: credentials.email as string,
-              name: "Alex Chen",
-              image: "https://avatars.githubusercontent.com/u/10101010?v=4",
-            },
-          })
-        }
-
-        return user
+        return user ?? null
       },
     }),
   ],
   callbacks: {
+    ...authConfig.callbacks,
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub
@@ -64,8 +56,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return token
     },
-  },
-  pages: {
-    signIn: "/login",
   },
 })

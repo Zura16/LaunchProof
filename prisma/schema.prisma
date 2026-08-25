@@ -9,25 +9,26 @@ generator client {
 
 // Authentication Models (Auth.js / NextAuth)
 model User {
-  id            String          @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String?         @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
-  
-  profile       StudentProfile?
-  resumes       Resume[]
-  githubAccount GitHubAccount?
-  savedJobs     SavedJob[]
-  evidences     Evidence[]
-  studentSkills StudentSkill[]
-  applications  Application[]
-  projectPlans  ProjectPlan[]
-  
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+
+  profile         StudentProfile?
+  resumes         Resume[]
+  githubAccount   GitHubAccount?
+  savedJobs       SavedJob[]
+  evidences       Evidence[]
+  studentSkills   StudentSkill[]
+  applications    Application[]
+  projectPlans    ProjectPlan[]
+  recommendations Recommendation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Account {
@@ -67,27 +68,26 @@ model VerificationToken {
 
 // Student Profile
 model StudentProfile {
-  id                    String    @id @default(cuid())
-  userId                String    @unique
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   fullName              String
   university            String
   degree                String
   major                 String
   graduationDate        DateTime
-  academicYear          String    // FRESHMAN, SOPHOMORE, JUNIOR, SENIOR, GRADUATE
-  preferredJobTypes     String[]  // INTERNSHIP, NEW_GRAD, FULL_TIME
+  academicYear          String // FRESHMAN, SOPHOMORE, JUNIOR, SENIOR, GRADUATE
+  preferredJobTypes     String[] // INTERNSHIP, NEW_GRAD, FULL_TIME
   preferredLocations    String[]
-  remotePreference      String    // IN_PERSON, HYBRID, REMOTE, ANY
-  workAuthorization     String    // US_CITIZEN, GREEN_CARD, F1_OPT, CPT, OTHER
+  remotePreference      String // IN_PERSON, HYBRID, REMOTE, ANY
+  workAuthorization     String // US_CITIZEN, GREEN_CARD, F1_OPT, CPT, OTHER
   sponsorshipRequired   Boolean   @default(false)
-  targetRoleCategories  String[]  // SWE, BACKEND, FRONTEND, FULLSTACK, MOBILE, DATA
-  isPublicProfile       Boolean   @default(false)
-  publicSlug            String?   @unique
+  targetRoleCategories  String[] // SWE, BACKEND, FRONTEND, FULLSTACK, MOBILE, DATA
+  onboardingCompletedAt DateTime?
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Skill System
@@ -115,15 +115,15 @@ model Skill {
   evidences       Evidence[]
   gaps            SkillGap[]
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model SkillAlias {
-  id        String   @id @default(cuid())
-  skillId   String
-  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  alias     String   @unique
+  id      String @id @default(cuid())
+  skillId String
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  alias   String @unique
 }
 
 // Evidence Engine
@@ -146,54 +146,54 @@ enum EvidenceSourceType {
 }
 
 model Evidence {
-  id           String             @id @default(cuid())
-  userId       String
-  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skillId      String
-  skill        Skill              @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  
-  sourceType   EvidenceSourceType
-  sourceId     String?            // Reference to repo ID, resume project ID, or work experience ID
-  strength     EvidenceStrength
-  description  String
-  evidenceUrl  String?
-  metadata     Json?              // File citations, commit counts, line counts, imports
-  
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId String
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  sourceType  EvidenceSourceType
+  sourceId    String? // Reference to repo ID, resume project ID, or work experience ID
+  strength    EvidenceStrength
+  description String
+  evidenceUrl String?
+  metadata    Json? // File citations, commit counts, line counts, imports
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model StudentSkill {
-  id               String           @id @default(cuid())
-  userId           String
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skillId          String
-  skill            Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  
-  highestStrength  EvidenceStrength @default(SELF_REPORTED)
-  notes            String?
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId String
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  highestStrength EvidenceStrength @default(SELF_REPORTED)
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, skillId])
 }
 
 // Résumé System
 model Resume {
-  id            String          @id @default(cuid())
+  id            String @id @default(cuid())
   userId        String
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   fileName      String
   fileUrl       String
-  rawText       String          @db.Text
+  rawText       String @db.Text
   parsedContent Json?
-  
-  experiences   Experience[]
-  projects      ResumeProject[]
-  
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+
+  experiences Experience[]
+  projects    ResumeProject[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Experience {
@@ -224,18 +224,18 @@ model ResumeProject {
 
 // GitHub Integration
 model GitHubAccount {
-  id              String             @id @default(cuid())
-  userId          String             @unique
-  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  username        String
-  avatarUrl       String?
-  profileUrl      String
-  accessToken     String?            // Encrypted at rest
-  
-  repositories    GitHubRepository[]
-  
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username    String
+  avatarUrl   String?
+  profileUrl  String
+  accessToken String? // Encrypted at rest
+
+  repositories GitHubRepository[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model GitHubRepository {
@@ -248,21 +248,23 @@ model GitHubRepository {
   isFork          Boolean       @default(false)
   stars           Int           @default(0)
   forks           Int           @default(0)
-  languages       Json          // e.g. { "TypeScript": 15000, "CSS": 2000 }
+  languages       Json // e.g. { "TypeScript": 15000, "CSS": 2000 }
   primaryLanguage String?
   topics          String[]
   repoUrl         String
   defaultBranch   String        @default("main")
-  analysisResult  Json?         // Extracted frameworks, libraries, tests, Docker, CI details
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  analysisResult  Json? // Extracted frameworks, libraries, tests, Docker, CI details
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Job System
 enum RequirementType {
   REQUIRED
   PREFERRED
+  RESPONSIBILITY
+  ELIGIBILITY
 }
 
 enum RequirementImportance {
@@ -272,66 +274,109 @@ enum RequirementImportance {
 }
 
 model JobPosting {
-  id              String           @id @default(cuid())
+  id              String  @id @default(cuid())
   company         String
   title           String
   location        String?
   url             String?
-  description     String           @db.Text
+  description     String  @db.Text
   rawRequirements Json?
-  
-  requirements    JobRequirement[]
-  savedJobs       SavedJob[]
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+
+  requirements JobRequirement[]
+  savedJobs    SavedJob[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model JobRequirement {
-  id           String                @id @default(cuid())
+  id           String     @id @default(cuid())
   jobPostingId String
-  jobPosting   JobPosting            @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
   skillId      String
-  skill        Skill                 @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  
-  type         RequirementType       @default(REQUIRED)
-  importance   RequirementImportance @default(HIGH)
-  rawMention   String?
-  
-  createdAt    DateTime              @default(now())
+  skill        Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  type       RequirementType       @default(REQUIRED)
+  importance RequirementImportance @default(HIGH)
+  rawMention String? // Original phrase as it appeared in the posting
+  confidence Float                 @default(1) // Extraction confidence, 0-1
+
+  createdAt DateTime @default(now())
 }
 
 model SavedJob {
-  id           String        @id @default(cuid())
+  id           String     @id @default(cuid())
   userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobPostingId String
-  jobPosting   JobPosting    @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
-  
-  notes        String?
-  application  Application?
+  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  notes       String?
+  application Application?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, jobPostingId])
 }
 
 // Skill Gap & Action Recommendation Engine
 model SkillGap {
-  id              String           @id @default(cuid())
-  userId          String
-  skillId         String
-  skill           Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  
-  marketCount     Int              // How many target saved jobs require/prefer it
-  marketPercent   Float            // Percentage of saved jobs
+  id      String @id @default(cuid())
+  userId  String
+  skillId String
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  marketCount     Int // How many target saved jobs require/prefer it
+  marketPercent   Float // Percentage of saved jobs
   currentEvidence EvidenceStrength
-  priorityScore   Float            // Deterministic computed score
+  priorityScore   Float // Deterministic computed score
   explanation     String           @db.Text
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum RecommendationType {
+  IMPROVE_EXISTING_PROJECT
+  BUILD_NEW_PROJECT
+  ADD_TESTING
+  DEPLOY_PROJECT
+  IMPROVE_DOCUMENTATION
+  ADD_DATABASE
+  ADD_CICD
+  STRENGTHEN_RESUME
+  APPLY_NOW
+}
+
+enum RecommendationImpact {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// A Recommendation is the deterministic-ranked, AI-explained bridge between
+// SkillGaps and an actionable ProjectPlan. Ranking inputs (market frequency,
+// required/preferred counts, evidence gap) are computed in application code;
+// only the resulting explanation text is AI-generated.
+model Recommendation {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type            RecommendationType
+  impact          RecommendationImpact
+  title           String
+  reasoning       String               @db.Text
+  skillsAddressed String[] // Skill names this recommendation creates evidence for
+  targetRepoName  String? // Existing repo this recommendation targets, if any
+  priorityScore   Float // Deterministic score used for ranking
+  status          String               @default("ACTIVE") // ACTIVE, DISMISSED, COMPLETED
+
+  projectPlan ProjectPlan?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum ProjectDifficulty {
@@ -341,36 +386,38 @@ enum ProjectDifficulty {
 }
 
 model ProjectPlan {
-  id               String            @id @default(cuid())
+  id               String          @id @default(cuid())
   userId           String
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  title            String
-  objective        String            @db.Text
-  whyItMatters     String            @db.Text
-  difficulty       ProjectDifficulty @default(MEDIUM)
-  targetRepoName   String?           // Existing repo to upgrade OR new repo name
-  skillsTargeted   String[]          // Skill names
-  
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recommendationId String?         @unique
+  recommendation   Recommendation? @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
+
+  title          String
+  objective      String            @db.Text
+  whyItMatters   String            @db.Text
+  difficulty     ProjectDifficulty @default(MEDIUM)
+  targetRepoName String? // Existing repo to upgrade OR new repo name
+  skillsTargeted String[] // Skill names
+
   milestones       ProjectMilestone[]
   definitionOfDone String[]
   expectedEvidence String[]
-  status           String            @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED
+  status           String             @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED
 
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ProjectMilestone {
   id            String      @id @default(cuid())
   projectPlanId String
   projectPlan   ProjectPlan @relation(fields: [projectPlanId], references: [id], onDelete: Cascade)
-  
-  title         String
-  description   String      @db.Text
-  tasks         String[]
-  isCompleted   Boolean     @default(false)
-  order         Int         @default(0)
+
+  title       String
+  description String   @db.Text
+  tasks       String[]
+  isCompleted Boolean  @default(false)
+  order       Int      @default(0)
 }
 
 // Application Tracking
@@ -388,19 +435,20 @@ enum ApplicationStatus {
 }
 
 model Application {
-  id              String            @id @default(cuid())
-  userId          String
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  savedJobId      String            @unique
-  savedJob        SavedJob          @relation(fields: [savedJobId], references: [id], onDelete: Cascade)
-  
-  status          ApplicationStatus @default(SAVED)
-  appliedDate     DateTime?
-  resumeVersion   String?
-  referralContact String?
-  notes           String?           @db.Text
-  rejectionStage  String?
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  savedJobId String   @unique
+  savedJob   SavedJob @relation(fields: [savedJobId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  status            ApplicationStatus @default(SAVED)
+  appliedDate       DateTime?
+  nextInterviewDate DateTime?
+  resumeVersion     String?
+  referralContact   String?
+  notes             String?           @db.Text
+  rejectionStage    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

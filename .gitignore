@@ -24,6 +24,9 @@ yarn-error.log*
 /prisma/dev.db
 /prisma/dev.db-journal
 
+# user-uploaded files (local disk storage for MVP)
+/uploads
+
 # typescript cache
 *.tsbuildinfo
 next-env.d.ts

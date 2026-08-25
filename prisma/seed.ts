@@ -1,4 +1,4 @@
-import { PrismaClient, SkillCategory, EvidenceStrength, EvidenceSourceType, RequirementType, RequirementImportance, ProjectDifficulty } from '@prisma/client'
+import { PrismaClient, SkillCategory, EvidenceStrength, EvidenceSourceType, RequirementType, RequirementImportance, ProjectDifficulty, RecommendationType, RecommendationImpact } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -34,8 +34,7 @@ async function main() {
       workAuthorization: 'US_CITIZEN',
       sponsorshipRequired: false,
       targetRoleCategories: ['SWE', 'BACKEND', 'FULLSTACK'],
-      isPublicProfile: true,
-      publicSlug: 'alex-chen',
+      onboardingCompletedAt: new Date(),
     },
   })
 
@@ -284,6 +283,72 @@ async function main() {
     }
   }
 
+  // 6b. Seed deterministic Skill Gaps (market frequency x evidence gap, computed against the 12 target jobs below)
+  const skillGapsData = [
+    {
+      slug: 'automated-testing',
+      marketCount: 7,
+      marketPercent: 58.3,
+      currentEvidence: EvidenceStrength.MISSING,
+      priorityScore: 0.95,
+      explanation:
+        'Automated Testing is one of your highest-priority gaps because it appears in 7 of your 12 target jobs, including as a required qualification in six of them, and no meaningful testing evidence was detected in your analyzed GitHub repositories.',
+    },
+    {
+      slug: 'aws',
+      marketCount: 6,
+      marketPercent: 50,
+      currentEvidence: EvidenceStrength.MISSING,
+      priorityScore: 0.82,
+      explanation:
+        'AWS appears in 6 of your 12 target jobs. Your GitHub repositories show no deployment configuration or cloud infrastructure files, so this shows as missing rather than weak.',
+    },
+    {
+      slug: 'docker',
+      marketCount: 4,
+      marketPercent: 33.3,
+      currentEvidence: EvidenceStrength.MISSING,
+      priorityScore: 0.61,
+      explanation:
+        'Docker appears in 4 of your 12 target jobs, mostly as a preferred qualification. None of your repositories contain a Dockerfile or container configuration.',
+    },
+    {
+      slug: 'postgresql',
+      marketCount: 3,
+      marketPercent: 25,
+      currentEvidence: EvidenceStrength.WEAK,
+      priorityScore: 0.48,
+      explanation:
+        'PostgreSQL appears in 3 of your 12 target jobs. CampusConnect claims PostgreSQL in its description, but no schema, migration, or query files were found in the repository to support it.',
+    },
+    {
+      slug: 'sql',
+      marketCount: 10,
+      marketPercent: 83.3,
+      currentEvidence: EvidenceStrength.MODERATE,
+      priorityScore: 0.4,
+      explanation:
+        'SQL appears in 10 of your 12 target jobs. You have moderate evidence from ExpenseTracker, but it lacks complex queries, indexing, or migrations that would move this to strong.',
+    },
+  ]
+
+  for (const gap of skillGapsData) {
+    const skillId = createdSkills[gap.slug]
+    if (skillId) {
+      await prisma.skillGap.create({
+        data: {
+          userId: alex.id,
+          skillId,
+          marketCount: gap.marketCount,
+          marketPercent: gap.marketPercent,
+          currentEvidence: gap.currentEvidence,
+          priorityScore: gap.priorityScore,
+          explanation: gap.explanation,
+        },
+      })
+    }
+  }
+
   // 7. Seed 12 Target Saved Jobs
   const jobPostingsData = [
     {
@@ -447,6 +512,8 @@ async function main() {
     },
   ]
 
+  const savedJobsByCompany: Record<string, string> = {}
+
   for (const job of jobPostingsData) {
     const posting = await prisma.jobPosting.create({
       data: {
@@ -466,18 +533,58 @@ async function main() {
       },
     })
 
-    await prisma.savedJob.create({
+    const savedJob = await prisma.savedJob.create({
       data: {
         userId: alex.id,
         jobPostingId: posting.id,
       },
     })
+
+    savedJobsByCompany[job.company] = savedJob.id
   }
 
-  // 8. Create Flagship Recommended Project Plan (Upgrade CampusConnect)
+  // 7b. Seed a few Applications in different funnel stages
+  const applicationsData = [
+    { company: 'TechCorp', status: 'APPLIED' as const, appliedDate: new Date('2026-08-10') },
+    { company: 'Apex Labs', status: 'TECHNICAL_INTERVIEW' as const, appliedDate: new Date('2026-08-05') },
+    { company: 'WebPulse', status: 'RECRUITER_SCREEN' as const, appliedDate: new Date('2026-08-15') },
+    { company: 'ScaleAI', status: 'SAVED' as const, appliedDate: null },
+  ]
+
+  for (const appData of applicationsData) {
+    const savedJobId = savedJobsByCompany[appData.company]
+    if (savedJobId) {
+      await prisma.application.create({
+        data: {
+          userId: alex.id,
+          savedJobId,
+          status: appData.status,
+          appliedDate: appData.appliedDate,
+          resumeVersion: 'Alex_Chen_SWE_Resume.pdf',
+        },
+      })
+    }
+  }
+
+  // 8. Create the Flagship Recommendation, then the Project Plan it generates
+  const recommendation = await prisma.recommendation.create({
+    data: {
+      userId: alex.id,
+      type: RecommendationType.IMPROVE_EXISTING_PROJECT,
+      impact: RecommendationImpact.HIGH,
+      title: 'Upgrade CampusConnect',
+      reasoning:
+        'Automated Testing appears in 7 of your 12 target jobs, PostgreSQL in 3, AWS in 6, and Docker in 4. CampusConnect is your strongest existing project and already touches these areas, so hardening it addresses four recurring gaps at once instead of starting a new project from scratch.',
+      skillsAddressed: ['Automated Testing', 'PostgreSQL', 'AWS', 'Docker', 'CI/CD'],
+      targetRepoName: 'CampusConnect',
+      priorityScore: 0.91,
+    },
+  })
+
   await prisma.projectPlan.create({
     data: {
       userId: alex.id,
+      recommendationId: recommendation.id,
       title: 'Upgrade CampusConnect with PostgreSQL, Testing, Docker & AWS',
       targetRepoName: 'CampusConnect',
       difficulty: ProjectDifficulty.MEDIUM,
@@ -545,6 +652,33 @@ async function main() {
           },
         ],
       },
+    },
+  })
+
+  // 9. Two additional standalone recommendations (no project plan yet) for dashboard variety
+  await prisma.recommendation.create({
+    data: {
+      userId: alex.id,
+      type: RecommendationType.STRENGTHEN_RESUME,
+      impact: RecommendationImpact.MEDIUM,
+      title: 'Strengthen your PostgreSQL evidence',
+      reasoning:
+        'PostgreSQL appears in 3 of your 12 target jobs, but your only supporting evidence is a claim in the CampusConnect project description with no schema or migration files in the repository. Adding a real schema would move this from weak to strong evidence.',
+      skillsAddressed: ['PostgreSQL'],
+      priorityScore: 0.48,
+    },
+  })
+
+  await prisma.recommendation.create({
+    data: {
+      userId: alex.id,
+      type: RecommendationType.APPLY_NOW,
+      impact: RecommendationImpact.LOW,
+      title: 'Apply now to WebPulse while improving testing',
+      reasoning:
+        'You have strong evidence for React, TypeScript, and REST APIs, which cover 3 of WebPulse’s 4 required qualifications. Automated Testing is the one gap, and it is a recurring weakness across your target roles rather than specific to this job, so it should not block you from applying.',
+      skillsAddressed: [],
+      priorityScore: 0.35,
     },
   })
 

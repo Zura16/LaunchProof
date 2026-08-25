@@ -32,7 +32,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 47.4% 11.2%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
   }
 }
 
@@ -44,37 +44,6 @@
     @apply bg-slate-50 text-slate-900 antialiased selection:bg-slate-900 selection:text-white;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
-}
-
-/* Liquid Glass Button & Control Design System */
-.glass-btn-primary {
-  @apply relative inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900/85 backdrop-blur-xl px-5 py-2.5 text-xs font-bold text-white border border-slate-700/60 shadow-lg shadow-slate-900/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] transition-all duration-200 hover:bg-slate-900/95 hover:border-slate-600 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] cursor-pointer;
-}
-
-.glass-btn-secondary {
-  @apply relative inline-flex items-center justify-center gap-2 rounded-xl bg-white/80 backdrop-blur-xl px-5 py-2.5 text-xs font-bold text-slate-900 border border-slate-300/80 shadow-md shadow-slate-900/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9)] transition-all duration-200 hover:bg-white/95 hover:border-slate-400 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer;
-}
-
-/* Background Subtle Grid Texture */
-.bg-mobbin-grid {
-  background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-.bg-mobbin-glow {
-  background: radial-gradient(circle at 50% 0%, rgba(15, 23, 42, 0.06) 0%, rgba(30, 41, 59, 0.02) 35%, transparent 70%);
-}
-
-.mobbin-card {
-  @apply rounded-xl border border-slate-200/80 bg-white/90 backdrop-blur-xl shadow-sm transition-all duration-300 hover:border-slate-400/80 hover:bg-white hover:shadow-xl hover:shadow-slate-900/10;
-}
-
-.mobbin-pill {
-  @apply rounded-full border border-slate-300/80 bg-white/80 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-slate-700 hover:border-slate-400 hover:bg-white hover:text-slate-900 shadow-sm shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)] transition-all cursor-pointer;
-}
-
-.mobbin-pill-active {
-  @apply rounded-full border border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-3.5 py-1 text-xs font-bold text-white shadow-md shadow-slate-900/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] transition-all cursor-pointer;
 }
 
 /* Custom Scrollbar */
