@@ -7,8 +7,16 @@ import { Button } from '@/components/ui/button'
 export default async function LoginPage() {
   const session = await auth()
   if (session?.user?.id) {
-    const profile = await prisma.studentProfile.findUnique({ where: { userId: session.user.id } })
-    redirect(profile?.onboardingCompletedAt ? '/dashboard' : '/onboarding')
+    // Confirm the session's user still exists before redirecting into the
+    // app. A JWT outlives the row it points to, and sending a stale session
+    // to /onboarding would bounce straight back here.
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { profile: { select: { onboardingCompletedAt: true } } },
+    })
+    if (user) {
+      redirect(user.profile?.onboardingCompletedAt ? '/dashboard' : '/onboarding')
+    }
   }
 
   return (
