@@ -1,18 +1,93 @@
 import { prisma } from '@/lib/db/prisma'
-import type { Recommendation, SkillCategory } from '@prisma/client'
+import { isAIConfigured } from '@/lib/ai/client'
+import { draftProjectPlan, type ProjectPlanDraft } from '@/lib/ai/project-plan'
+import type { SkillCategory } from '@prisma/client'
 
-// Deterministic milestone templates keyed by skill category. AI-generated
-// wording (Phase 7) can later enrich these tasks with project-specific
-// detail; this keeps a real, working project plan available without an
-// LLM call in the loop.
-const TASK_TEMPLATES: Partial<Record<SkillCategory, string[]>> = {
-  TESTING: ['Configure a test runner for the project', 'Write unit tests for core business logic', 'Add integration tests covering the main API routes'],
-  DATABASE: ['Design a relational schema for the feature area', 'Write and run a migration', 'Seed representative development data'],
-  CLOUD: ['Deploy the project to a cloud provider', 'Configure environment variables for the deployment', 'Verify a live health-check endpoint'],
-  DEVOPS: ['Write a CI workflow that runs on every pull request', 'Add automated build and lint checks', 'Document the deployment process in the README'],
+// Deterministic milestone templates. These are the fallback when AI is
+// unavailable or its output fails validation — a student should always be
+// able to turn a recommendation into a real, actionable plan, with or
+// without an API key.
+const TASK_TEMPLATES: Partial<Record<SkillCategory, { title: string; tasks: string[] }>> = {
+  TESTING: {
+    title: 'Add an automated test suite',
+    tasks: [
+      'Configure a test runner for the project',
+      'Write unit tests covering the core business logic',
+      'Add integration tests for the main API routes',
+      'Record the passing test run in the README',
+    ],
+  },
+  DATABASE: {
+    title: 'Add a real database implementation',
+    tasks: [
+      'Design a relational schema for the feature area',
+      'Write and run an initial migration',
+      'Seed representative development data',
+      'Add at least one non-trivial query with an index',
+    ],
+  },
+  CLOUD: {
+    title: 'Deploy the project',
+    tasks: [
+      'Choose a cloud provider and create the deployment target',
+      'Configure environment variables and secrets for the deployment',
+      'Deploy the application and verify a live health-check endpoint',
+      'Add the live URL to the repository README',
+    ],
+  },
+  DEVOPS: {
+    title: 'Automate build and delivery',
+    tasks: [
+      'Add a CI workflow that runs on every pull request',
+      'Run the test suite and linter in CI',
+      'Document the pipeline in the README',
+    ],
+  },
 }
 
-const DEFAULT_TASKS = ['Implement the feature end to end', 'Add tests covering the new behavior', 'Update the README with usage notes']
+const DEFAULT_MILESTONE = {
+  title: 'Implement and demonstrate the skill',
+  tasks: [
+    'Implement the capability end to end',
+    'Add tests covering the new behavior',
+    'Document what was built and why in the README',
+  ],
+}
+
+function buildFallbackDraft(skills: string[], categories: Map<string, SkillCategory>, repoName: string | null, reasoning: string): ProjectPlanDraft {
+  const seen = new Set<SkillCategory>()
+  const milestones: ProjectPlanDraft['milestones'] = []
+
+  for (const skill of skills) {
+    const category = categories.get(skill)
+    const template = category ? TASK_TEMPLATES[category] : undefined
+    if (template && !seen.has(category!)) {
+      seen.add(category!)
+      milestones.push({
+        title: template.title,
+        description: `Build checkable evidence for ${skill}${repoName ? ` in ${repoName}` : ''}.`,
+        tasks: template.tasks,
+      })
+    }
+  }
+
+  if (milestones.length === 0) {
+    milestones.push({
+      title: DEFAULT_MILESTONE.title,
+      description: `Build checkable evidence for ${skills.join(', ') || 'the targeted skills'}.`,
+      tasks: DEFAULT_MILESTONE.tasks,
+    })
+  }
+
+  return {
+    objective: `Close the ${skills.join(', ') || 'targeted'} gap${repoName ? ` by upgrading ${repoName}` : ' with a new project'}.`,
+    whyItMatters: reasoning,
+    technicalRequirements: [],
+    milestones: milestones.slice(0, 4),
+    definitionOfDone: skills.map((s) => `${s}: a reviewer can find the artifact proving it in the repository`),
+    expectedEvidence: skills.map((s) => `${s}: real, checkable artifact committed to the repository`),
+  }
+}
 
 export async function generateProjectPlanFromRecommendation(recommendationId: string, userId: string) {
   const recommendation = await prisma.recommendation.findUnique({ where: { id: recommendationId } })
@@ -23,32 +98,47 @@ export async function generateProjectPlanFromRecommendation(recommendationId: st
   const existing = await prisma.projectPlan.findUnique({ where: { recommendationId } })
   if (existing) return existing
 
-  const skills = await prisma.skill.findMany({ where: { name: { in: recommendation.skillsAddressed } } })
-  const skillByName = new Map(skills.map((s) => [s.name, s]))
+  const skills = recommendation.skillsAddressed
+  const skillRows = await prisma.skill.findMany({ where: { name: { in: skills } } })
+  const categories = new Map(skillRows.map((s) => [s.name, s.category]))
 
-  const milestones = recommendation.skillsAddressed.map((skillName, i) => {
-    const category = skillByName.get(skillName)?.category
-    const tasks = (category && TASK_TEMPLATES[category]) || DEFAULT_TASKS
-    return {
-      order: i + 1,
-      title: `Add ${skillName}`,
-      description: `Build real, checkable evidence for ${skillName}${recommendation.targetRepoName ? ` in ${recommendation.targetRepoName}` : ''}.`,
-      tasks,
+  let draft: ProjectPlanDraft
+  if (isAIConfigured()) {
+    try {
+      draft = await draftProjectPlan({
+        skills,
+        targetRepoName: recommendation.targetRepoName,
+        reasoning: recommendation.reasoning,
+      })
+    } catch {
+      // A failed or malformed AI draft must not block the student.
+      draft = buildFallbackDraft(skills, categories, recommendation.targetRepoName, recommendation.reasoning)
     }
-  })
+  } else {
+    draft = buildFallbackDraft(skills, categories, recommendation.targetRepoName, recommendation.reasoning)
+  }
 
   return prisma.projectPlan.create({
     data: {
       userId,
       recommendationId,
       title: recommendation.title,
-      objective: `Close the ${recommendation.skillsAddressed.join(', ') || 'targeted'} gap${recommendation.targetRepoName ? ` by upgrading ${recommendation.targetRepoName}` : ''}.`,
-      whyItMatters: recommendation.reasoning,
+      objective: draft.objective,
+      whyItMatters: draft.whyItMatters,
       targetRepoName: recommendation.targetRepoName,
-      skillsTargeted: recommendation.skillsAddressed,
-      definitionOfDone: recommendation.skillsAddressed.map((s) => `${s}: evidence upgraded to at least MODERATE strength`),
-      expectedEvidence: recommendation.skillsAddressed.map((s) => `${s}: real, checkable artifact in the repository`),
-      milestones: { create: milestones },
+      skillsTargeted: skills,
+      definitionOfDone: draft.definitionOfDone,
+      expectedEvidence: draft.expectedEvidence,
+      milestones: {
+        create: draft.milestones.map((m, i) => ({
+          order: i + 1,
+          title: m.title,
+          description: m.description,
+          tasks: {
+            create: m.tasks.map((t, ti) => ({ title: t, order: ti + 1 })),
+          },
+        })),
+      },
     },
   })
 }

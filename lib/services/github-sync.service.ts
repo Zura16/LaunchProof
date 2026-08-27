@@ -4,7 +4,7 @@ import { fetchRepoSnapshots, GitHubFetchError } from '@/lib/github/fetch-repos'
 import { analyzeRepoSnapshot } from '@/lib/services/repo-evidence.service'
 import { resolveCanonicalSkill, findCanonicalSkill } from '@/lib/services/skill-normalization.service'
 import { syncStudentSkills, strongestOf } from '@/lib/services/evidence-sync.service'
-import { recomputeSkillGaps } from '@/lib/services/gap-analysis.service'
+import { refreshDerivedInsights } from '@/lib/services/recommendation-engine.service'
 import type { RepoSnapshot, RepoAnalysis, DetectedEvidence } from '@/lib/github/types'
 
 export { GitHubFetchError }
@@ -164,7 +164,7 @@ export async function syncGitHubRepositories(userId: string): Promise<{ repoCoun
 
   await prisma.gitHubAccount.update({ where: { id: account.id }, data: { updatedAt: new Date() } })
   await syncStudentSkills(userId)
-  await recomputeSkillGaps(userId)
+  await refreshDerivedInsights(userId)
 
   return { repoCount: snapshots.length, evidenceCount }
 }
@@ -173,5 +173,5 @@ export async function syncGitHubRepositories(userId: string): Promise<{ repoCoun
 export async function clearGitHubEvidence(userId: string): Promise<void> {
   await prisma.evidence.deleteMany({ where: { userId, sourceType: 'GITHUB_REPOSITORY' } })
   await syncStudentSkills(userId)
-  await recomputeSkillGaps(userId)
+  await refreshDerivedInsights(userId)
 }

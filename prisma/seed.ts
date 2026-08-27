@@ -1,9 +1,11 @@
-import { PrismaClient, SkillCategory, EvidenceStrength, EvidenceSourceType, RequirementType, RequirementImportance, ProjectDifficulty, RecommendationType, RecommendationImpact } from '@prisma/client'
+import { PrismaClient, SkillCategory, EvidenceStrength, EvidenceSourceType, RequirementType, RequirementImportance } from '@prisma/client'
 import { recomputeSkillGaps } from '@/lib/services/gap-analysis.service'
 import { analyzeRepoSnapshot } from '@/lib/services/repo-evidence.service'
 import { persistRepoAnalysis } from '@/lib/services/github-sync.service'
 import { persistResumeEvidence } from '@/lib/services/resume-analysis.service'
 import { syncStudentSkills } from '@/lib/services/evidence-sync.service'
+import { regenerateRecommendations } from '@/lib/services/recommendation-engine.service'
+import { generateProjectPlanFromRecommendation } from '@/lib/services/project-plan-generator.service'
 import type { RepoSnapshot } from '@/lib/github/types'
 
 const prisma = new PrismaClient()
@@ -533,127 +535,30 @@ async function main() {
     }
   }
 
-  // 8. Create the Flagship Recommendation, then the Project Plan it generates
-  const recommendation = await prisma.recommendation.create({
-    data: {
-      userId: alex.id,
-      type: RecommendationType.IMPROVE_EXISTING_PROJECT,
-      impact: RecommendationImpact.HIGH,
-      title: 'Upgrade CampusConnect',
-      reasoning:
-        'Automated Testing appears in 7 of your 12 target jobs, PostgreSQL in 3, AWS in 6, and Docker in 4. CampusConnect is your strongest existing project and already touches these areas, so hardening it addresses four recurring gaps at once instead of starting a new project from scratch.',
-      skillsAddressed: ['Automated Testing', 'PostgreSQL', 'AWS', 'Docker', 'CI/CD'],
-      targetRepoName: 'CampusConnect',
-      priorityScore: 0.91,
-    },
-  })
-
-  await prisma.projectPlan.create({
-    data: {
-      userId: alex.id,
-      recommendationId: recommendation.id,
-      title: 'Upgrade CampusConnect with PostgreSQL, Testing, Docker & AWS',
-      targetRepoName: 'CampusConnect',
-      difficulty: ProjectDifficulty.MEDIUM,
-      objective:
-        'Transform CampusConnect from an unverified prototype into an enterprise-grade backend service backed by PostgreSQL schema migrations, comprehensive Jest unit/API tests, Docker containerization, and AWS deployment.',
-      whyItMatters:
-        'Automated Testing appears in 7 of your 12 saved jobs (58%), PostgreSQL appears in 3 jobs, AWS in 6 jobs, and Docker in 4 jobs. This single project upgrade addresses your three highest-priority evidence gaps without starting from scratch.',
-      skillsTargeted: ['Automated Testing', 'PostgreSQL', 'AWS', 'Docker', 'CI/CD'],
-      definitionOfDone: [
-        'PostgreSQL schema defined with Prisma migrations & seeds',
-        'Jest unit tests covering >80% of core business logic',
-        'Supertest API integration tests covering all 12 REST endpoints',
-        'Dockerfile and docker-compose setup for local development',
-        'GitHub Actions CI pipeline running automated tests on pull request',
-        'Application deployed to AWS (App Runner or EC2) with live health check endpoint',
-      ],
-      expectedEvidence: [
-        'Automated Testing: STRONG (Jest & Supertest test suite in repo)',
-        'PostgreSQL: STRONG (Prisma migrations & schema in repo)',
-        'AWS: STRONG (Live deployed application URL)',
-        'Docker: MODERATE (Dockerfile & docker-compose.yml)',
-        'CI/CD: STRONG (GitHub Actions workflow file)',
-      ],
-      status: 'PLANNED',
-      milestones: {
-        create: [
-          {
-            order: 1,
-            title: 'Database Schema & PostgreSQL Integration',
-            description: 'Replace mock memory/inconsistent storage with PostgreSQL and Prisma schema migrations.',
-            tasks: [
-              'Setup PostgreSQL instance (local or Supabase/RDS)',
-              'Write Prisma schema with 6 relational models (Users, Events, RSVP, Comments, Topics)',
-              'Run initial migration and write seed data script',
-            ],
-          },
-          {
-            order: 2,
-            title: 'Automated Testing Suite (Jest & Supertest)',
-            description: 'Add automated unit and integration tests to verify API correctness.',
-            tasks: [
-              'Configure Jest and ts-jest for TypeScript backend testing',
-              'Write unit tests for authentication logic and permission checks',
-              'Write API integration tests using Supertest for all REST routes',
-            ],
-          },
-          {
-            order: 3,
-            title: 'Docker Containerization & CI/CD Pipeline',
-            description: 'Create multi-stage Docker build and automate testing on push.',
-            tasks: [
-              'Write production multi-stage Dockerfile and docker-compose.yml',
-              'Create .github/workflows/test.yml to run Jest on every PR',
-            ],
-          },
-          {
-            order: 4,
-            title: 'AWS Cloud Deployment & Evidence Proof',
-            description: 'Deploy application to cloud provider and publish evidence URL.',
-            tasks: [
-              'Deploy containerized service to AWS App Runner / AWS ECS',
-              'Configure environment variables and database connection pooling',
-              'Verify live health endpoint and update GitHub repository README',
-            ],
-          },
-        ],
-      },
-    },
-  })
-
-  // 9. Two additional standalone recommendations (no project plan yet) for dashboard variety
-  await prisma.recommendation.create({
-    data: {
-      userId: alex.id,
-      type: RecommendationType.STRENGTHEN_RESUME,
-      impact: RecommendationImpact.MEDIUM,
-      title: 'Strengthen your PostgreSQL evidence',
-      reasoning:
-        'PostgreSQL appears in 3 of your 12 target jobs, but your only supporting evidence is a claim in the CampusConnect project description with no schema or migration files in the repository. Adding a real schema would move this from weak to strong evidence.',
-      skillsAddressed: ['PostgreSQL'],
-      priorityScore: 0.48,
-    },
-  })
-
-  await prisma.recommendation.create({
-    data: {
-      userId: alex.id,
-      type: RecommendationType.APPLY_NOW,
-      impact: RecommendationImpact.LOW,
-      title: 'Apply now to WebPulse while improving testing',
-      reasoning:
-        'You have strong evidence for React, TypeScript, and REST APIs, which cover 3 of WebPulse’s 4 required qualifications. Automated Testing is the one gap, and it is a recurring weakness across your target roles rather than specific to this job, so it should not block you from applying.',
-      skillsAddressed: [],
-      priorityScore: 0.35,
-    },
-  })
-
-  // 10. Roll evidence up into StudentSkill, then derive skill gaps — both
-  // through the real engines, so seed data stays honest.
+  // 8. Roll evidence up into StudentSkill, then derive gaps and
+  // recommendations through the real engines. Nothing below is asserted —
+  // the demo's recommendations are computed from the seeded jobs, repos,
+  // and résumé exactly as they would be for a real user.
   await syncStudentSkills(alex.id)
   const gaps = await recomputeSkillGaps(alex.id)
   console.log(`   Computed ${gaps.length} skill gaps from seeded data.`)
+
+  const recommendations = await regenerateRecommendations(alex.id)
+  console.log(`   Generated ${recommendations.length} recommendations.`)
+  for (const r of recommendations) {
+    console.log(`     - [${r.impact}] ${r.title}`)
+  }
+
+  // 9. Turn the top recommendation into a project plan so the demo shows a
+  // complete flow from gap to actionable, checkable work.
+  const top = await prisma.recommendation.findFirst({
+    where: { userId: alex.id, status: 'ACTIVE', type: { not: 'APPLY_NOW' } },
+    orderBy: { priorityScore: 'desc' },
+  })
+  if (top) {
+    const plan = await generateProjectPlanFromRecommendation(top.id, alex.id)
+    console.log(`   Created project plan: ${plan.title}`)
+  }
 
   console.log('✅ LaunchProof seed completed successfully!')
 }

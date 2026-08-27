@@ -414,10 +414,22 @@ model ProjectMilestone {
   projectPlan   ProjectPlan @relation(fields: [projectPlanId], references: [id], onDelete: Cascade)
 
   title       String
-  description String   @db.Text
-  tasks       String[]
-  isCompleted Boolean  @default(false)
-  order       Int      @default(0)
+  description String        @db.Text
+  tasks       ProjectTask[]
+  order       Int           @default(0)
+}
+
+// A milestone is complete when all its tasks are, so completion is derived
+// rather than stored — no risk of a milestone claiming to be done while
+// tasks under it remain open.
+model ProjectTask {
+  id          String           @id @default(cuid())
+  milestoneId String
+  milestone   ProjectMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  title       String
+  isCompleted Boolean          @default(false)
+  order       Int              @default(0)
 }
 
 // Application Tracking

@@ -12,7 +12,7 @@ export default async function ProjectsPage() {
 
   const plans = await prisma.projectPlan.findMany({
     where: { userId: user.id },
-    include: { milestones: true },
+    include: { milestones: { include: { tasks: true } } },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -34,7 +34,8 @@ export default async function ProjectsPage() {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {plans.map((plan) => {
-        const done = plan.milestones.filter((m) => m.isCompleted).length
+        const tasks = plan.milestones.flatMap((m) => m.tasks)
+        const done = tasks.filter((t) => t.isCompleted).length
         return (
           <Link key={plan.id} href={`/projects/${plan.id}`}>
             <Card className="h-full transition-shadow hover:shadow-md">
@@ -47,10 +48,11 @@ export default async function ProjectsPage() {
                 <div>
                   <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
                     <span>
-                      {done}/{plan.milestones.length} milestones
+                      {done}/{tasks.length} tasks
                     </span>
+                    <span>{plan.milestones.length} milestones</span>
                   </div>
-                  <Progress value={done} max={plan.milestones.length || 1} />
+                  <Progress value={done} max={tasks.length || 1} />
                 </div>
               </CardContent>
             </Card>

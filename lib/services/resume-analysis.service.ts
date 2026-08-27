@@ -3,7 +3,7 @@ import { analyzeResumeText } from '@/lib/ai/resume-analysis'
 import { extractPdfText } from '@/lib/services/pdf-text.service'
 import { resolveCanonicalSkill } from '@/lib/services/skill-normalization.service'
 import { syncStudentSkills } from '@/lib/services/evidence-sync.service'
-import { recomputeSkillGaps } from '@/lib/services/gap-analysis.service'
+import { refreshDerivedInsights } from '@/lib/services/recommendation-engine.service'
 import type { ResumeAnalysisResult } from '@/schemas/resume-analysis'
 import type { EvidenceSourceType, EvidenceStrength } from '@prisma/client'
 
@@ -157,7 +157,7 @@ export async function analyzeResume(resumeId: string, userId: string) {
   await persistResumeEvidence(userId, resumeId, result)
 
   await syncStudentSkills(userId)
-  await recomputeSkillGaps(userId)
+  await refreshDerivedInsights(userId)
 
   return result
 }
@@ -169,5 +169,5 @@ export async function clearResumeEvidence(resumeId: string, userId: string) {
     where: { userId, sourceId: resumeId, sourceType: { in: ['RESUME_PROJECT', 'WORK_EXPERIENCE', 'MANUAL'] } },
   })
   await syncStudentSkills(userId)
-  await recomputeSkillGaps(userId)
+  await refreshDerivedInsights(userId)
 }
