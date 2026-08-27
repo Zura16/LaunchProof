@@ -1,4 +1,5 @@
 import { PrismaClient, SkillCategory, EvidenceStrength, EvidenceSourceType, RequirementType, RequirementImportance, ProjectDifficulty, RecommendationType, RecommendationImpact } from '@prisma/client'
+import { recomputeSkillGaps } from '@/lib/services/gap-analysis.service'
 
 const prisma = new PrismaClient()
 
@@ -278,72 +279,6 @@ async function main() {
           userId: alex.id,
           skillId,
           highestStrength: ev.strength,
-        },
-      })
-    }
-  }
-
-  // 6b. Seed deterministic Skill Gaps (market frequency x evidence gap, computed against the 12 target jobs below)
-  const skillGapsData = [
-    {
-      slug: 'automated-testing',
-      marketCount: 7,
-      marketPercent: 58.3,
-      currentEvidence: EvidenceStrength.MISSING,
-      priorityScore: 0.95,
-      explanation:
-        'Automated Testing is one of your highest-priority gaps because it appears in 7 of your 12 target jobs, including as a required qualification in six of them, and no meaningful testing evidence was detected in your analyzed GitHub repositories.',
-    },
-    {
-      slug: 'aws',
-      marketCount: 6,
-      marketPercent: 50,
-      currentEvidence: EvidenceStrength.MISSING,
-      priorityScore: 0.82,
-      explanation:
-        'AWS appears in 6 of your 12 target jobs. Your GitHub repositories show no deployment configuration or cloud infrastructure files, so this shows as missing rather than weak.',
-    },
-    {
-      slug: 'docker',
-      marketCount: 4,
-      marketPercent: 33.3,
-      currentEvidence: EvidenceStrength.MISSING,
-      priorityScore: 0.61,
-      explanation:
-        'Docker appears in 4 of your 12 target jobs, mostly as a preferred qualification. None of your repositories contain a Dockerfile or container configuration.',
-    },
-    {
-      slug: 'postgresql',
-      marketCount: 3,
-      marketPercent: 25,
-      currentEvidence: EvidenceStrength.WEAK,
-      priorityScore: 0.48,
-      explanation:
-        'PostgreSQL appears in 3 of your 12 target jobs. CampusConnect claims PostgreSQL in its description, but no schema, migration, or query files were found in the repository to support it.',
-    },
-    {
-      slug: 'sql',
-      marketCount: 10,
-      marketPercent: 83.3,
-      currentEvidence: EvidenceStrength.MODERATE,
-      priorityScore: 0.4,
-      explanation:
-        'SQL appears in 10 of your 12 target jobs. You have moderate evidence from ExpenseTracker, but it lacks complex queries, indexing, or migrations that would move this to strong.',
-    },
-  ]
-
-  for (const gap of skillGapsData) {
-    const skillId = createdSkills[gap.slug]
-    if (skillId) {
-      await prisma.skillGap.create({
-        data: {
-          userId: alex.id,
-          skillId,
-          marketCount: gap.marketCount,
-          marketPercent: gap.marketPercent,
-          currentEvidence: gap.currentEvidence,
-          priorityScore: gap.priorityScore,
-          explanation: gap.explanation,
         },
       })
     }
@@ -681,6 +616,11 @@ async function main() {
       priorityScore: 0.35,
     },
   })
+
+  // 10. Derive skill gaps from the seeded jobs + evidence using the real
+  // gap engine, rather than hardcoding them — keeps seed data honest.
+  const gaps = await recomputeSkillGaps(alex.id)
+  console.log(`   Computed ${gaps.length} skill gaps from seeded data.`)
 
   console.log('✅ LaunchProof seed completed successfully!')
 }

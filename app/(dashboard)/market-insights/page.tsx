@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/shared/empty-state'
 import { EvidenceBadge } from '@/components/shared/evidence-badge'
+import { Tooltip } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 const FILTERS = [
@@ -85,7 +86,11 @@ export default async function MarketInsightsPage({ searchParams }: { searchParam
             <TableBody>
               {filtered.map((r) => (
                 <TableRow key={r.skillId}>
-                  <TableCell className="font-medium text-slate-900">{r.skillName}</TableCell>
+                  <TableCell className="font-medium text-slate-900">
+                    <Link href={`/evidence/${r.skillId}`} className="hover:underline">
+                      {r.skillName}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     {r.jobsMentioning} / {r.totalJobs}
                   </TableCell>
@@ -96,7 +101,9 @@ export default async function MarketInsightsPage({ searchParams }: { searchParam
                     <EvidenceBadge strength={r.evidenceStrength} />
                   </TableCell>
                   <TableCell>
-                    <Badge variant={PRIORITY_VARIANT[r.priority]}>{r.priority}</Badge>
+                    <Tooltip content={r.explanation}>
+                      <Badge variant={PRIORITY_VARIANT[r.priority]}>{r.priority}</Badge>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}

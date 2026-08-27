@@ -1,12 +1,14 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ExternalLink, CheckCircle2, Trash2, AlertTriangle } from 'lucide-react'
+import { ExternalLink, CheckCircle2, Trash2, AlertTriangle, ChevronRight } from 'lucide-react'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
+import { getJobFit } from '@/lib/services/job-fit.service'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { EmptyState } from '@/components/shared/empty-state'
+import { FitBadge } from '@/components/shared/evidence-badge'
 import { Tooltip } from '@/components/ui/tooltip'
 import { deleteSavedJobAction, markAppliedAction } from '@/app/(dashboard)/jobs/actions'
 import { AnalyzeJobButton } from '@/components/jobs/analyze-job-button'
@@ -39,6 +41,7 @@ export default async function JobDetailPage({
   if (!saved || saved.userId !== user.id) notFound()
 
   const { jobPosting } = saved
+  const fit = await getJobFit(user.id, jobPosting.id)
 
   return (
     <div className="space-y-6">
@@ -88,14 +91,50 @@ export default async function JobDetailPage({
       <Card>
         <CardHeader>
           <CardTitle>Your Fit</CardTitle>
+          <CardDescription>
+            Every classification below is explainable — expand a skill to see exactly why it was rated that way.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <EmptyState
-            title="Evidence comparison not yet available"
-            description="Your Fit compares this job's requirements against your evidence graph — it becomes available once skill gap analysis is built out."
-          />
+          {fit.rows.length === 0 ? (
+            <EmptyState
+              title="No requirements to compare yet"
+              description="Run analysis on this job first — LaunchProof compares its extracted requirements against your evidence."
+              action={<AnalyzeJobButton savedJobId={saved.id} />}
+            />
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {fit.rows.map((row) => (
+                <details key={row.skillId} className="group py-2 first:pt-0 last:pb-0">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md px-1 py-1.5 hover:bg-slate-50">
+                    <span className="flex items-center gap-2">
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform group-open:rotate-90" />
+                      <span className="text-sm font-medium text-slate-900">{row.skillName}</span>
+                      {row.requirementType === 'REQUIRED' && (
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Required</span>
+                      )}
+                    </span>
+                    <FitBadge classification={row.classification} />
+                  </summary>
+                  <p className="ml-6 mt-1 pr-2 text-xs leading-relaxed text-slate-500">{row.why}</p>
+                </details>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {fit.recommendation && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recommendation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5">
+            <p className="text-sm font-semibold text-slate-900">{fit.recommendation.headline}</p>
+            <p className="text-sm leading-relaxed text-slate-600">{fit.recommendation.reasoning}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">

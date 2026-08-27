@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
-import { getMarketInsights } from '@/lib/services/market-insights.service'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,7 +9,7 @@ import { Progress } from '@/components/ui/progress'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { EmptyState } from '@/components/shared/empty-state'
 import { createProjectPlanAction } from '@/app/(dashboard)/recommendations/actions'
-import { priorityLabel } from '@/lib/services/priority.service'
+import { computeSkillGaps, priorityLabel } from '@/lib/services/gap-analysis.service'
 
 const IMPACT_VARIANT = { HIGH: 'destructive', MEDIUM: 'warning', LOW: 'outline' } as const
 
@@ -31,7 +30,7 @@ export default async function DashboardPage() {
     prisma.savedJob.count({ where: { userId: user.id } }),
     prisma.studentSkill.count({ where: { userId: user.id, highestStrength: 'STRONG' } }),
     prisma.studentSkill.count({ where: { userId: user.id } }),
-    prisma.skillGap.findMany({ where: { userId: user.id } }),
+    computeSkillGaps(user.id),
     prisma.application.count({ where: { userId: user.id, status: { notIn: ['SAVED', 'REJECTED', 'WITHDRAWN'] } } }),
     prisma.recommendation.findMany({
       where: { userId: user.id, status: 'ACTIVE' },
@@ -50,7 +49,12 @@ export default async function DashboardPage() {
   ])
 
   const highPriorityGapCount = skillGaps.filter((g) => priorityLabel(g.priorityScore) === 'High').length
-  const marketRows = savedJobCount >= 3 ? (await getMarketInsights(user.id)).slice(0, 5) : []
+
+  // Same aggregation as Market Insights, ordered demand-first.
+  const marketRows =
+    savedJobCount >= 3
+      ? [...skillGaps].sort((a, b) => b.marketCount - a.marketCount || b.marketPercent - a.marketPercent).slice(0, 5)
+      : []
 
   const checklist = [
     { label: 'Upload résumé', done: resumeCount > 0, href: '/resume' },
@@ -181,15 +185,15 @@ export default async function DashboardPage() {
               <EmptyState title="Not enough data yet" description="Save at least 3 target jobs to see recurring skill demand." />
             ) : (
               marketRows.map((r) => (
-                <div key={r.skillId}>
+                <Link key={r.skillId} href={`/evidence/${r.skillId}`} className="block">
                   <div className="mb-1 flex items-center justify-between text-xs">
                     <span className="font-medium text-slate-700">{r.skillName}</span>
                     <span className="text-slate-400">
-                      {r.jobsMentioning} / {r.totalJobs}
+                      {r.marketCount} / {r.totalJobs}
                     </span>
                   </div>
-                  <Progress value={r.jobsMentioning} max={r.totalJobs} />
-                </div>
+                  <Progress value={r.marketCount} max={r.totalJobs} />
+                </Link>
               ))
             )}
           </CardContent>

@@ -1,5 +1,4 @@
-import { prisma } from '@/lib/db/prisma'
-import { computePriorityScore, priorityLabel } from '@/lib/services/priority.service'
+import { computeSkillGaps, priorityLabel } from '@/lib/services/gap-analysis.service'
 import type { EvidenceStrength } from '@prisma/client'
 
 export interface MarketSkillRow {
@@ -12,53 +11,26 @@ export interface MarketSkillRow {
   preferredCount: number
   evidenceStrength: EvidenceStrength
   priority: 'High' | 'Medium' | 'Low'
+  explanation: string
 }
 
+// Market Insights is the same aggregation the gap engine already performs,
+// presented demand-first (sorted by frequency) rather than action-first.
 export async function getMarketInsights(userId: string): Promise<MarketSkillRow[]> {
-  const savedJobs = await prisma.savedJob.findMany({
-    where: { userId },
-    include: { jobPosting: { include: { requirements: { include: { skill: true } } } } },
-  })
-  const totalJobs = savedJobs.length
-  if (totalJobs === 0) return []
+  const gaps = await computeSkillGaps(userId)
 
-  const studentSkills = await prisma.studentSkill.findMany({ where: { userId } })
-  const strengthBySkillId = new Map(studentSkills.map((s) => [s.skillId, s.highestStrength]))
-
-  const bySkill = new Map<string, { name: string; jobIds: Set<string>; required: number; preferred: number }>()
-
-  for (const saved of savedJobs) {
-    for (const req of saved.jobPosting.requirements) {
-      const entry = bySkill.get(req.skillId) ?? {
-        name: req.skill.name,
-        jobIds: new Set<string>(),
-        required: 0,
-        preferred: 0,
-      }
-      entry.jobIds.add(saved.jobPostingId)
-      if (req.type === 'REQUIRED') entry.required += 1
-      if (req.type === 'PREFERRED') entry.preferred += 1
-      bySkill.set(req.skillId, entry)
-    }
-  }
-
-  const rows: MarketSkillRow[] = Array.from(bySkill.entries()).map(([skillId, data]) => {
-    const jobsMentioning = data.jobIds.size
-    const frequencyPercent = Math.round((jobsMentioning / totalJobs) * 100)
-    const evidenceStrength = strengthBySkillId.get(skillId) ?? 'MISSING'
-    const score = computePriorityScore(frequencyPercent, evidenceStrength)
-    return {
-      skillId,
-      skillName: data.name,
-      jobsMentioning,
-      totalJobs,
-      frequencyPercent,
-      requiredCount: data.required,
-      preferredCount: data.preferred,
-      evidenceStrength,
-      priority: priorityLabel(score),
-    }
-  })
-
-  return rows.sort((a, b) => b.frequencyPercent - a.frequencyPercent)
+  return gaps
+    .map((g) => ({
+      skillId: g.skillId,
+      skillName: g.skillName,
+      jobsMentioning: g.marketCount,
+      totalJobs: g.totalJobs,
+      frequencyPercent: g.marketPercent,
+      requiredCount: g.requiredCount,
+      preferredCount: g.preferredCount,
+      evidenceStrength: g.currentEvidence,
+      priority: priorityLabel(g.priorityScore),
+      explanation: g.explanation,
+    }))
+    .sort((a, b) => b.frequencyPercent - a.frequencyPercent || b.jobsMentioning - a.jobsMentioning)
 }
