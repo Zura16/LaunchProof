@@ -35,10 +35,25 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-slate-900 focus:px-3 focus:py-2 focus:text-sm focus:text-white"
+      >
+        Skip to content
+      </a>
+
       <Sidebar name={name} subtitle={subtitle} initials={initials} signOutAction={signOutAction} />
-      <div className="flex min-h-screen flex-col pl-60">
-        <Header githubUsername={githubAccount?.username ?? null} />
-        <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 p-8">{children}</main>
+
+      <div className="flex min-h-screen flex-col lg:pl-60">
+        <Header
+          githubUsername={githubAccount?.username ?? null}
+          name={name}
+          subtitle={subtitle}
+          signOutAction={signOutAction}
+        />
+        <main id="main-content" className="mx-auto w-full max-w-6xl flex-1 space-y-6 p-4 sm:p-6 lg:p-8">
+          {children}
+        </main>
       </div>
     </div>
   )

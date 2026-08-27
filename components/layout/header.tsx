@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { Github } from 'lucide-react'
+import { MobileNav } from '@/components/layout/mobile-nav'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -25,19 +26,25 @@ function titleForPath(pathname: string) {
 
 interface HeaderProps {
   githubUsername: string | null
+  name: string
+  subtitle: string
+  signOutAction: () => Promise<void>
 }
 
-export function Header({ githubUsername }: HeaderProps) {
+export function Header({ githubUsername, name, subtitle, signOutAction }: HeaderProps) {
   const pathname = usePathname() ?? ''
   const title = titleForPath(pathname)
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-8 backdrop-blur-sm">
-      <h1 className="text-sm font-semibold text-slate-900">{title}</h1>
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur-sm sm:px-8">
+      <div className="flex min-w-0 items-center gap-2">
+        <MobileNav name={name} subtitle={subtitle} signOutAction={signOutAction} />
+        <h1 className="truncate text-sm font-semibold text-slate-900">{title}</h1>
+      </div>
 
       {githubUsername && (
-        <div className="flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600">
-          <Github className="h-3.5 w-3.5" />
+        <div className="hidden shrink-0 items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 sm:flex">
+          <Github className="h-3.5 w-3.5" aria-hidden="true" />
           <span>@{githubUsername}</span>
         </div>
       )}

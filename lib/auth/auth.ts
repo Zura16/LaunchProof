@@ -12,6 +12,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
+  // Auth.js only auto-trusts the request host in development. Without this,
+  // every auth route returns 500 ("UntrustedHost") in a production build —
+  // the app is deployed behind its own proxy and the canonical origin is
+  // pinned by NEXTAUTH_URL/AUTH_URL, so the forwarded host is trustworthy.
+  // Can be overridden per-deployment with AUTH_TRUST_HOST.
+  trustHost: true,
   providers: [
     GitHub({
       clientId: process.env.GITHUB_CLIENT_ID,

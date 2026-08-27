@@ -16,6 +16,9 @@ export const PROTECTED_PATH_PREFIXES = [
 ]
 
 export const authConfig = {
+  // Middleware runs this config too, so it needs the same host trust as the
+  // full config — see the note in auth.ts.
+  trustHost: true,
   pages: {
     signIn: '/login',
   },

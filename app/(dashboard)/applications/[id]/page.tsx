@@ -9,10 +9,7 @@ import { Button } from '@/components/ui/button'
 import { ApplicationForm } from '@/components/applications/application-form'
 import { deleteApplicationAction } from '@/app/(dashboard)/applications/actions'
 import { STATUS_LABEL, TERMINAL_STATUSES } from '@/schemas/application'
-
-function toDateInput(d: Date | null) {
-  return d ? d.toISOString().slice(0, 10) : ''
-}
+import { formatDateOnly, toDateInputValue } from '@/lib/utils'
 
 export default async function ApplicationDetailPage({ params }: { params: { id: string } }) {
   const user = await requireUser()
@@ -57,7 +54,7 @@ export default async function ApplicationDetailPage({ params }: { params: { id: 
                   Original posting <ExternalLink className="h-3 w-3" />
                 </a>
               )}
-              {application.closedAt && <span>Closed {application.closedAt.toLocaleDateString()}</span>}
+              {application.closedAt && <span>Closed {formatDateOnly(application.closedAt)}</span>}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -84,8 +81,8 @@ export default async function ApplicationDetailPage({ params }: { params: { id: 
             resumes={resumes}
             initial={{
               status: application.status,
-              appliedDate: toDateInput(application.appliedDate),
-              nextInterviewDate: toDateInput(application.nextInterviewDate),
+              appliedDate: toDateInputValue(application.appliedDate),
+              nextInterviewDate: toDateInputValue(application.nextInterviewDate),
               resumeId: application.resumeId ?? '',
               referralContact: application.referralContact ?? '',
               recruiterContact: application.recruiterContact ?? '',

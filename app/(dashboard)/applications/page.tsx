@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { StatusSelect } from '@/components/applications/status-select'
 import { TrackJobForm } from '@/components/applications/track-job-form'
 import { TERMINAL_STATUSES } from '@/schemas/application'
-import { cn } from '@/lib/utils'
+import { cn, formatDateOnly } from '@/lib/utils'
 import type { ApplicationStatus } from '@prisma/client'
 
 const FILTERS = [
@@ -25,10 +25,6 @@ const INTERVIEWING: ApplicationStatus[] = [
   'TECHNICAL_INTERVIEW',
   'FINAL_INTERVIEW',
 ]
-
-function formatDate(d: Date | null) {
-  return d ? d.toLocaleDateString() : '—'
-}
 
 export default async function ApplicationsPage({ searchParams }: { searchParams: { filter?: string } }) {
   const user = await requireUser()
@@ -160,13 +156,13 @@ export default async function ApplicationsPage({ searchParams }: { searchParams:
                     </Link>
                     <span className="ml-1.5 font-normal text-slate-400">{app.savedJob.jobPosting.title}</span>
                   </TableCell>
-                  <TableCell>{formatDate(app.appliedDate)}</TableCell>
+                  <TableCell>{formatDateOnly(app.appliedDate)}</TableCell>
                   <TableCell>
                     <StatusSelect applicationId={app.id} status={app.status} />
                   </TableCell>
                   <TableCell className="max-w-40 truncate">{app.resume?.fileName ?? '—'}</TableCell>
                   <TableCell>{app.referralContact ?? '—'}</TableCell>
-                  <TableCell>{formatDate(app.nextInterviewDate)}</TableCell>
+                  <TableCell>{formatDateOnly(app.nextInterviewDate)}</TableCell>
                   <TableCell>
                     <Link href={`/applications/${app.id}`} aria-label="Open application details">
                       <ChevronRight className="h-4 w-4 text-slate-400" />

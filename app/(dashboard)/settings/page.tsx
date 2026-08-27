@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ProfileForm } from '@/components/settings/profile-form'
 import { DeleteAccountButton } from '@/components/settings/delete-account-button'
 import { GitHubActions } from '@/components/settings/github-section'
+import { toDateInputValue } from '@/lib/utils'
 import type { RepoAnalysis } from '@/lib/github/types'
 
 function Signal({ ok, label }: { ok: boolean; label: string }) {
@@ -48,7 +49,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { g
               university: profile.university,
               degree: profile.degree,
               major: profile.major,
-              graduationDate: profile.graduationDate.toISOString().slice(0, 10),
+              graduationDate: toDateInputValue(profile.graduationDate),
               academicYear: profile.academicYear,
             }}
           />

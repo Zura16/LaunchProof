@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { Rocket } from 'lucide-react'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
+import { toDateInputValue } from '@/lib/utils'
 import { getLinkedGitHubAccount } from '@/lib/services/github-connect.service'
 import { ProgressSteps } from '@/components/onboarding/progress-steps'
 import { StepStudentInfo } from '@/components/onboarding/step-student-info'
@@ -43,7 +44,7 @@ export default async function OnboardingPage({
           university: profile?.university,
           degree: profile?.degree,
           major: profile?.major,
-          graduationDate: profile?.graduationDate ? profile.graduationDate.toISOString().slice(0, 10) : undefined,
+          graduationDate: toDateInputValue(profile?.graduationDate) || undefined,
           academicYear: profile?.academicYear,
         }}
       />
