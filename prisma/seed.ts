@@ -512,12 +512,38 @@ async function main() {
     savedJobsByCompany[job.company] = savedJob.id
   }
 
-  // 7b. Seed a few Applications in different funnel stages
+  // 7b. Seed Applications across the funnel, including a closed one, so the
+  // tracker's filters and outcome fields all have something to show.
   const applicationsData = [
-    { company: 'TechCorp', status: 'APPLIED' as const, appliedDate: new Date('2026-08-10') },
-    { company: 'Apex Labs', status: 'TECHNICAL_INTERVIEW' as const, appliedDate: new Date('2026-08-05') },
-    { company: 'WebPulse', status: 'RECRUITER_SCREEN' as const, appliedDate: new Date('2026-08-15') },
-    { company: 'ScaleAI', status: 'SAVED' as const, appliedDate: null },
+    {
+      company: 'TechCorp',
+      status: 'APPLIED' as const,
+      appliedDate: new Date('2026-08-10'),
+      referralContact: 'Priya N. (family friend)',
+    },
+    {
+      company: 'Apex Labs',
+      status: 'TECHNICAL_INTERVIEW' as const,
+      appliedDate: new Date('2026-08-05'),
+      nextInterviewDate: new Date('2026-09-02'),
+      recruiterContact: 'jordan.lee@apexlabs.ai',
+      notes: 'Round 2 is a systems design conversation. Review REST pagination and indexing.',
+    },
+    {
+      company: 'WebPulse',
+      status: 'RECRUITER_SCREEN' as const,
+      appliedDate: new Date('2026-08-15'),
+      nextInterviewDate: new Date('2026-08-30'),
+    },
+    { company: 'ScaleAI', status: 'PREPARING' as const },
+    {
+      company: 'CyberShield',
+      status: 'REJECTED' as const,
+      appliedDate: new Date('2026-07-20'),
+      closedAt: new Date('2026-08-08'),
+      rejectionStage: 'Online assessment',
+      outcomeNote: 'Timed out on the testing question — reinforces automated testing as the top gap to close.',
+    },
   ]
 
   for (const appData of applicationsData) {
@@ -528,8 +554,15 @@ async function main() {
           userId: alex.id,
           savedJobId,
           status: appData.status,
-          appliedDate: appData.appliedDate,
-          resumeVersion: 'Alex_Chen_SWE_Resume.pdf',
+          appliedDate: appData.appliedDate ?? null,
+          nextInterviewDate: appData.nextInterviewDate ?? null,
+          closedAt: appData.closedAt ?? null,
+          referralContact: appData.referralContact ?? null,
+          recruiterContact: appData.recruiterContact ?? null,
+          notes: appData.notes ?? null,
+          outcomeNote: appData.outcomeNote ?? null,
+          rejectionStage: appData.rejectionStage ?? null,
+          resumeId: resume.id,
         },
       })
     }

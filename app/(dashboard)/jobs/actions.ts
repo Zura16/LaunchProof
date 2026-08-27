@@ -52,7 +52,11 @@ export async function markAppliedAction(savedJobId: string) {
   if (saved.application) {
     await prisma.application.update({
       where: { id: saved.application.id },
-      data: { status: 'APPLIED', appliedDate: new Date() },
+      data: {
+        status: 'APPLIED',
+        appliedDate: saved.application.appliedDate ?? new Date(),
+        closedAt: null,
+      },
     })
   } else {
     await prisma.application.create({

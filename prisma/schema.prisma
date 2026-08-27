@@ -189,8 +189,9 @@ model Resume {
   rawText       String @db.Text
   parsedContent Json?
 
-  experiences Experience[]
-  projects    ResumeProject[]
+  experiences  Experience[]
+  projects     ResumeProject[]
+  applications Application[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -428,8 +429,8 @@ model ProjectTask {
   milestone   ProjectMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
 
   title       String
-  isCompleted Boolean          @default(false)
-  order       Int              @default(0)
+  isCompleted Boolean @default(false)
+  order       Int     @default(0)
 }
 
 // Application Tracking
@@ -456,11 +457,27 @@ model Application {
   status            ApplicationStatus @default(SAVED)
   appliedDate       DateTime?
   nextInterviewDate DateTime?
-  resumeVersion     String?
-  referralContact   String?
-  notes             String?           @db.Text
-  rejectionStage    String?
+
+  // Which résumé was actually sent. A relation rather than a free-text
+  // "version" string, since the uploaded résumés already exist — this way a
+  // student can see exactly which document went to which company.
+  resumeId String?
+  resume   Resume? @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+
+  referralContact  String?
+  recruiterContact String?
+  notes            String? @db.Text
+
+  // Outcome is not a separate table: the terminal states already live in
+  // ApplicationStatus (OFFER / REJECTED / WITHDRAWN), so an outcome row
+  // would only duplicate them. What status cannot express is *when* it
+  // closed and *why*, which is what these two fields carry.
+  closedAt       DateTime?
+  outcomeNote    String?   @db.Text
+  rejectionStage String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
 }
