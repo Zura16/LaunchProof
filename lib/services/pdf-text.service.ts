@@ -1,5 +1,4 @@
-import { readFile } from 'fs/promises'
-import path from 'path'
+import { readResumeFile } from '@/lib/services/resume-storage.service'
 
 export class PdfExtractionError extends Error {}
 
@@ -14,17 +13,8 @@ async function loadPdfParse(): Promise<PdfParseFn> {
   return (mod.default ?? mod) as PdfParseFn
 }
 
-export async function extractPdfText(fileUrl: string): Promise<string> {
-  const storedName = path.basename(fileUrl)
-  const filePath = path.join(process.cwd(), 'uploads', 'resumes', storedName)
-
-  let buffer: Buffer
-  try {
-    buffer = await readFile(filePath)
-  } catch {
-    throw new PdfExtractionError('The stored résumé file could not be read. Try re-uploading it.')
-  }
-
+/** Extract text from PDF bytes already in memory — no storage access. */
+export async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
   try {
     const pdfParse = await loadPdfParse()
     const { text } = await pdfParse(buffer)
@@ -40,4 +30,20 @@ export async function extractPdfText(fileUrl: string): Promise<string> {
     if (e instanceof PdfExtractionError) throw e
     throw new PdfExtractionError('This PDF could not be read. It may be corrupted or password-protected.')
   }
+}
+
+/**
+ * Extract text from a stored résumé.
+ *
+ * Uploads parse the in-memory buffer instead; this is the re-analysis path
+ * for a résumé whose text was never captured.
+ */
+export async function extractPdfText(fileUrl: string): Promise<string> {
+  let buffer: Buffer
+  try {
+    buffer = await readResumeFile(fileUrl)
+  } catch {
+    throw new PdfExtractionError('The stored résumé file could not be read. Try re-uploading it.')
+  }
+  return extractPdfTextFromBuffer(buffer)
 }

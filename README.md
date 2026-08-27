@@ -42,6 +42,7 @@ These are enforced in code, not just aspirations:
 | Auth | Auth.js (NextAuth v5) — GitHub, Google, plus a seeded demo account |
 | AI | OpenAI behind a single server-side abstraction, all output Zod-validated |
 | Integrations | Octokit (GitHub), pdf-parse (résumé text) |
+| Storage | Local disk in development, Vercel Blob when configured |
 
 ---
 
@@ -77,6 +78,9 @@ GITHUB_CLIENT_ID="..."          # GitHub sign-in and repository sync
 GITHUB_CLIENT_SECRET="..."
 GOOGLE_CLIENT_ID="..."
 GOOGLE_CLIENT_SECRET="..."
+
+BLOB_READ_WRITE_TOKEN=""        # résumé storage; unset = local disk.
+                                # Required on serverless hosts (see DEPLOYMENT.md)
 ```
 
 **Everything degrades gracefully without the optional keys.** Without `OPENAI_API_KEY`, job and résumé analysis surface a clear "not configured" message instead of failing, and project plans fall back to deterministic templates. The seeded demo account is fully populated either way — its evidence, gaps, and recommendations are *derived by the real engines*, not hardcoded.
@@ -97,9 +101,10 @@ GOOGLE_CLIENT_SECRET="..."
 ## Verification
 
 ```bash
-npm run verify        # 57 offline checks, no API cost
-npm run verify:ai     # live AI extraction (requires OPENAI_API_KEY)
-npm run verify:e2e    # full pipeline: analyze → normalize → gaps → fit
+npm run verify                 # 57 offline checks, no API cost
+npm run verify:storage <pdf>   # 13 checks: upload/read/delete round trip, needs any PDF
+npm run verify:ai              # live AI extraction (requires OPENAI_API_KEY)
+npm run verify:e2e             # full pipeline: analyze → normalize → gaps → fit
 ```
 
 The offline suite covers the logic the product's honesty claims depend on: that absence stays absence, that evidence rollups take the strongest source, that removing a résumé retracts only its own claims, that no skill is claimed by two recommendations, and that dismissed advice is never resurrected.
@@ -135,9 +140,11 @@ A few decisions worth knowing about:
 
 ## Deployment
 
-This is a **server-rendered application** — 19 dynamic routes, 9 modules of server actions, middleware, and a database. It needs a Node runtime and a Postgres instance; it cannot run as a static site.
+This is a **server-rendered application** — 19 dynamic routes, 9 modules of server actions, middleware, and a database. It needs a Node runtime and a Postgres instance; it cannot run as a static site, so GitHub Pages and similar static hosts will not work.
 
-See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the walkthrough.
+It is serverless-ready: résumé storage switches to object storage when `BLOB_READ_WRITE_TOKEN` is set, and nothing else in the app touches the filesystem.
+
+See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the Vercel walkthrough and other hosts.
 
 ---
 

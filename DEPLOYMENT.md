@@ -28,7 +28,20 @@ Vercel is built by the Next.js team and needs no configuration for this app.
 
 Any hosted Postgres works — [Neon](https://neon.tech), [Supabase](https://supabase.com), and Vercel Postgres all have free tiers. Copy the connection string.
 
-> Neon and Supabase require `?sslmode=require` on the connection string.
+> **Use the pooled connection string.** Serverless functions scale to many
+> concurrent instances, each opening its own connection, which will exhaust a
+> direct Postgres connection limit. Neon and Supabase both expose a pooled
+> endpoint (Neon: the `-pooler` host; Supabase: port `6543`) — use it for
+> `DATABASE_URL`.
+>
+> Neon and Supabase also require `?sslmode=require`.
+
+### 1b. Create a Blob store
+
+In the Vercel dashboard: **Storage → Create → Blob**. Connecting it to the
+project sets `BLOB_READ_WRITE_TOKEN` automatically.
+
+This is required for résumé uploads — see [Uploads in production](#uploads-in-production).
 
 ### 2. Import the repository
 
@@ -39,9 +52,10 @@ At [vercel.com/new](https://vercel.com/new), import `Zura16/LaunchProof`. Vercel
 In **Settings → Environment Variables**:
 
 ```
-DATABASE_URL       postgresql://...        (from step 1)
-NEXTAUTH_URL       https://<your-app>.vercel.app
-NEXTAUTH_SECRET    <openssl rand -base64 32>
+DATABASE_URL            postgresql://...   (pooled string from step 1)
+NEXTAUTH_URL            https://<your-app>.vercel.app
+NEXTAUTH_SECRET         <openssl rand -base64 32>
+BLOB_READ_WRITE_TOKEN   <set automatically when the Blob store is connected>
 ```
 
 Optional, to enable the AI and GitHub features:
@@ -88,11 +102,20 @@ If using GitHub or Google sign-in, set the callback URLs on those apps to your d
 
 ## Uploads in production
 
-Résumés are written to `uploads/` on local disk. That works on a VPS with a persistent volume, but **not on Vercel or other serverless platforms**, where the filesystem is ephemeral and per-invocation — an uploaded file will not survive.
+Résumé storage has two drivers, chosen automatically:
 
-For serverless hosting, move `lib/services/resume-storage.service.ts` to object storage (S3, Vercel Blob, Supabase Storage). It's deliberately the only module that touches the filesystem, so this is a contained change: `saveResumeFile` and `deleteResumeFile` are the two functions to swap.
+| Driver | When | Where files go |
+|---|---|---|
+| `blob` | `BLOB_READ_WRITE_TOKEN` is set | Vercel Blob |
+| `local` | otherwise | `uploads/` on local disk |
 
-Everything else in the app is serverless-safe.
+**Set `BLOB_READ_WRITE_TOKEN` on any serverless host.** Without it the app falls back to local disk, where the filesystem is ephemeral and per-invocation — an uploaded résumé would not survive to the next request.
+
+Local disk is the right choice for development and for a VPS with a persistent volume; no token needed there.
+
+To use a different backend (S3, R2, Supabase Storage), implement `saveResumeFile`, `deleteResumeFile`, and `readResumeFile` in `lib/services/resume-storage.service.ts`. It is deliberately the only module in the app that touches storage.
+
+Everything else is serverless-safe.
 
 ---
 

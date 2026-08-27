@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
 import { saveResumeFile, deleteResumeFile, ResumeUploadError } from '@/lib/services/resume-storage.service'
-import { extractPdfText, PdfExtractionError } from '@/lib/services/pdf-text.service'
+import { extractPdfTextFromBuffer, PdfExtractionError } from '@/lib/services/pdf-text.service'
 import { analyzeResume, clearResumeEvidence } from '@/lib/services/resume-analysis.service'
 import { AIAnalysisError } from '@/lib/ai/generate-structured'
 import type { ActionState } from '@/app/onboarding/actions'
@@ -22,9 +22,11 @@ export async function uploadResumeGeneral(_prev: ActionState, formData: FormData
     const saved = await saveResumeFile(user.id, file)
     fileUrl = saved.fileUrl
 
-    // Extract text up front: a scanned or corrupt PDF can never be analyzed,
-    // so it is better to say so now than to store a dead file.
-    const rawText = await extractPdfText(saved.fileUrl)
+    // Extract text up front from the bytes we already hold: a scanned or
+    // corrupt PDF can never be analyzed, so it is better to say so now than
+    // to store a dead file. Parsing the buffer also avoids reading the file
+    // back out of storage.
+    const rawText = await extractPdfTextFromBuffer(saved.buffer)
 
     await prisma.resume.create({
       data: { userId: user.id, fileName: saved.fileName, fileUrl: saved.fileUrl, rawText },
