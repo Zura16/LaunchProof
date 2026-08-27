@@ -128,10 +128,16 @@ export async function getJobFit(userId: string, jobPostingId: string): Promise<J
     artifactsBySkillId.set(e.skillId, list)
   }
 
+  // Eligibility criteria (degree field, graduation window, work
+  // authorization) are not skills a student builds evidence for. Showing
+  // "Computer Science — Missing" to a CS student would be nonsense, so
+  // they are surfaced in the Requirements section only.
+  const comparable = requirements.filter((r) => r.type !== 'ELIGIBILITY')
+
   // One row per skill — a posting that mentions a skill twice shouldn't
   // list it twice. REQUIRED wins over PREFERRED when both appear.
   const bySkill = new Map<string, (typeof requirements)[number]>()
-  for (const req of requirements) {
+  for (const req of comparable) {
     const existing = bySkill.get(req.skillId)
     if (!existing || (existing.type !== 'REQUIRED' && req.type === 'REQUIRED')) {
       bySkill.set(req.skillId, req)

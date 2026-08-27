@@ -17,7 +17,21 @@ Critical rules for this task:
 - If a field is not present, return an empty string or empty array. Do not guess.
 - Do not infer seniority, quality, or any personal characteristic.
 
-Respond with a JSON object matching the requested shape.`
+Respond with a JSON object in exactly this shape. Every key must be present, every listed field is required, and education/experiences/projects must always be ARRAYS (use [] when empty):
+
+{
+  "education": [
+    { "institution": "string", "degree": "string", "field": "string", "graduationDate": "string", "gpa": "string" }
+  ],
+  "experiences": [
+    { "company": "string", "role": "string", "startDate": "string", "endDate": "string", "bullets": ["string"], "skillsUsed": ["string"] }
+  ],
+  "projects": [
+    { "title": "string", "role": "string", "description": "string", "bullets": ["string"], "technologies": ["string"], "repoUrl": "string", "liveUrl": "string" }
+  ],
+  "listedSkills": ["string"],
+  "certifications": ["string"]
+}`
 
 export async function analyzeResumeText(rawText: string): Promise<ResumeAnalysisResult> {
   return generateStructured({

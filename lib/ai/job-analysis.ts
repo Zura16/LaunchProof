@@ -13,6 +13,11 @@ For each distinct technical skill, language, framework, database, cloud/DevOps t
 
 Only extract genuine technical skills and eligibility criteria — do not extract generic words like "communication" or "teamwork" unless they are the actual subject of a requirement. Do not extract every technology-sounding word; only extract what is actually being asked for.
 
+Avoid producing overlapping entries for a single requirement:
+- If a phrase names a specific technology alongside a generic restatement of it ("SQL and relational data modeling", "React and modern frontend frameworks"), extract only the specific named technology.
+- If a phrase names a general practice with example tools ("automated testing experience (Jest or similar)"), extract the practice once ("Automated Testing") rather than also extracting each example tool.
+- If a phrase offers genuine alternatives that are distinct technologies ("Python or Java"), extract each one separately.
+
 Respond with a JSON object of the shape { "requirements": [ ... ] }.`
 
 export async function analyzeJobDescription(description: string): Promise<JobAnalysisResult> {

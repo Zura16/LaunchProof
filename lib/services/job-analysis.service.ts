@@ -16,6 +16,13 @@ export async function analyzeJobPosting(jobPostingId: string) {
 
   const result = await analyzeJobDescription(jobPosting.description)
 
+  // Distinct extracted phrases routinely normalize to the same canonical
+  // skill — a posting saying "automated testing experience (Jest or
+  // similar)" yields both "Jest" and "automated testing", which are one
+  // requirement, not two. Storing both would double-count the skill in the
+  // requirements list and overstate how often the market asks for it.
+  const bySkillAndType = new Map<string, { skillId: string; req: (typeof result.requirements)[number] }>()
+
   for (const req of result.requirements) {
     const skill = await resolveCanonicalSkill({
       rawPhrase: req.rawPhrase,
@@ -23,10 +30,19 @@ export async function analyzeJobPosting(jobPostingId: string) {
       skillCategory: req.skillCategory,
     })
 
+    const key = `${skill.id}:${req.requirementType}`
+    const existing = bySkillAndType.get(key)
+    // Keep the highest-confidence phrasing for the same skill+type pair.
+    if (!existing || req.confidence > existing.req.confidence) {
+      bySkillAndType.set(key, { skillId: skill.id, req })
+    }
+  }
+
+  for (const { skillId, req } of bySkillAndType.values()) {
     await prisma.jobRequirement.create({
       data: {
         jobPostingId,
-        skillId: skill.id,
+        skillId,
         type: req.requirementType,
         importance: req.importance,
         rawMention: req.rawPhrase,

@@ -115,6 +115,9 @@ export async function computeSkillGaps(userId: string): Promise<ComputedGap[]> {
     // A skill can be listed more than once in one posting; count each job once.
     const seenInThisJob = new Set<string>()
     for (const req of saved.jobPosting.requirements) {
+      // Eligibility criteria are not skill demand — a degree field or work
+      // authorization requirement should never appear as a market skill.
+      if (req.type === 'ELIGIBILITY') continue
       const entry = bySkill.get(req.skillId) ?? {
         name: req.skill.name,
         jobIds: new Set<string>(),
