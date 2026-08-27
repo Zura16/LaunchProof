@@ -90,6 +90,45 @@ If using GitHub or Google sign-in, set the callback URLs on those apps to your d
 
 ---
 
+## Setting up GitHub OAuth
+
+Optional — sign-in works via Google or the demo account without it. Needed for
+repository evidence analysis.
+
+A GitHub **OAuth App** accepts only one callback URL, so create two: one for
+local development, one for the deployed app.
+
+1. Go to **https://github.com/settings/developers → OAuth Apps → New OAuth App**
+2. Fill in:
+
+   | Field | Local | Production |
+   |---|---|---|
+   | Application name | `LaunchProof (dev)` | `LaunchProof` |
+   | Homepage URL | `http://localhost:3000` | `https://<your-app>.vercel.app` |
+   | Authorization callback URL | `http://localhost:3000/api/auth/callback/github` | `https://<your-app>.vercel.app/api/auth/callback/github` |
+
+3. **Generate a new client secret.** It is shown once — copy it immediately.
+4. Set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` (in `.env` locally, in
+   Vercel's environment variables for production).
+
+The callback path must be exactly `/api/auth/callback/github`, and the origin
+must match `NEXTAUTH_URL` exactly — a trailing slash or `http` vs `https`
+mismatch causes a redirect_uri error.
+
+### Scopes
+
+LaunchProof requests `read:user user:email` and nothing more.
+
+It deliberately does **not** request `public_repo`, which despite the name
+grants *write* access to every public repository. Public repository metadata —
+the data used for evidence — is readable without any repository scope. If a
+student ever sees LaunchProof asking for write access to their code,
+something is wrong.
+
+Private repositories are not analyzed.
+
+---
+
 ## Other hosts
 
 | Host | Notes |
@@ -133,4 +172,5 @@ npm run build
 - [ ] `.env` is not committed (it is gitignored)
 - [ ] OAuth callback URLs updated for the new origin
 - [ ] Schema pushed to the production database
-- [ ] Résumé storage moved to object storage, if deploying serverless
+- [ ] `BLOB_READ_WRITE_TOKEN` set, if deploying serverless
+- [ ] Pooled Postgres connection string in use

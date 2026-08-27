@@ -24,7 +24,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       authorization: {
         params: {
-          scope: "read:user user:email public_repo",
+          // Least privilege: LaunchProof only ever reads public repository
+          // metadata, and public repos are readable without any repo scope.
+          // `public_repo` was removed deliberately — it grants *write* access
+          // to every public repository, which this app never needs and which
+          // is a lot to ask a student to approve just to have code inspected.
+          scope: "read:user user:email",
         },
       },
     }),
