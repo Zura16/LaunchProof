@@ -76,15 +76,69 @@ async function main() {
   }
 
   // 4. Create Resume Data
+  // parsedContent mirrors the structure the résumé analysis service produces,
+  // so the demo account shows a fully parsed résumé without needing an API key.
+  const alexResumeParsed = {
+    education: [
+      {
+        institution: 'UC Berkeley',
+        degree: 'Bachelor of Science',
+        field: 'Computer Science',
+        graduationDate: 'May 2027',
+        gpa: '3.7',
+      },
+    ],
+    experiences: [
+      {
+        company: 'TechCorp Solutions',
+        role: 'Software Engineering Intern',
+        startDate: 'Jun 2025',
+        endDate: 'Aug 2025',
+        bullets: [
+          'Built 12 high-throughput REST API endpoints in Express serving 10k daily requests.',
+          'Collaborated with senior engineers to optimize PostgreSQL query performance by 25%.',
+        ],
+        skillsUsed: ['Node.js', 'REST APIs', 'SQL', 'Git'],
+      },
+    ],
+    projects: [
+      {
+        title: 'CampusConnect',
+        role: 'Creator & Lead Developer',
+        description:
+          'A full-stack campus student event and discussion platform built with React, Node.js, and PostgreSQL.',
+        bullets: [
+          'Architected full-stack React frontend and Express backend connected to a relational database.',
+          'Designed authentication using JWT tokens and implemented real-time event updates.',
+        ],
+        technologies: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'REST APIs'],
+        repoUrl: 'https://github.com/alexchen/CampusConnect',
+        liveUrl: '',
+      },
+      {
+        title: 'ExpenseTracker',
+        role: 'Developer',
+        description: 'Personal finance tracking web application.',
+        bullets: [
+          'Created interactive spending dashboards using React and Express.',
+          'Integrated SQLite local storage with structured schema design.',
+        ],
+        technologies: ['React', 'JavaScript', 'Node.js', 'SQL'],
+        repoUrl: 'https://github.com/alexchen/ExpenseTracker',
+        liveUrl: '',
+      },
+    ],
+    listedSkills: ['Git', 'Express'],
+    certifications: [],
+  }
+
   const resume = await prisma.resume.create({
     data: {
       userId: alex.id,
       fileName: 'Alex_Chen_SWE_Resume.pdf',
       fileUrl: '/uploads/resumes/alex_chen.pdf',
       rawText: 'Alex Chen | UC Berkeley CS Senior | Full-Stack Developer | React, Node.js, Express, REST APIs',
-      parsedContent: {
-        skills: ['React', 'JavaScript', 'TypeScript', 'Node.js', 'Express', 'REST APIs', 'SQL', 'Git'],
-      },
+      parsedContent: alexResumeParsed,
       experiences: {
         create: [
           {

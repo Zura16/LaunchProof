@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
 import { studentInfoSchema, careerGoalsSchema, manualJobSchema } from '@/schemas/onboarding'
-import { saveResumeFile, ResumeUploadError } from '@/lib/services/resume-storage.service'
+import { saveResumeFile, deleteResumeFile, ResumeUploadError } from '@/lib/services/resume-storage.service'
+import { extractPdfText, PdfExtractionError } from '@/lib/services/pdf-text.service'
 import { createManualSavedJob } from '@/lib/services/saved-jobs.service'
 
 export type ActionState = { error?: string } | undefined
@@ -75,19 +76,18 @@ export async function uploadResumeAction(_prev: ActionState, formData: FormData)
     return { error: 'Choose a PDF file to upload.' }
   }
 
+  let storedUrl: string | undefined
   try {
     const { fileUrl, fileName } = await saveResumeFile(user.id, file)
+    storedUrl = fileUrl
+    const rawText = await extractPdfText(fileUrl)
+
     await prisma.resume.create({
-      data: {
-        userId: user.id,
-        fileName,
-        fileUrl,
-        rawText: '',
-        parsedContent: undefined,
-      },
+      data: { userId: user.id, fileName, fileUrl, rawText },
     })
   } catch (e) {
-    if (e instanceof ResumeUploadError) return { error: e.message }
+    if (storedUrl) await deleteResumeFile(storedUrl)
+    if (e instanceof ResumeUploadError || e instanceof PdfExtractionError) return { error: e.message }
     throw e
   }
 

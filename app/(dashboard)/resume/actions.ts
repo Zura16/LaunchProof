@@ -1,9 +1,13 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
 import { saveResumeFile, deleteResumeFile, ResumeUploadError } from '@/lib/services/resume-storage.service'
+import { extractPdfText, PdfExtractionError } from '@/lib/services/pdf-text.service'
+import { analyzeResume, clearResumeEvidence } from '@/lib/services/resume-analysis.service'
+import { AIAnalysisError } from '@/lib/ai/generate-structured'
 import type { ActionState } from '@/app/onboarding/actions'
 
 export async function uploadResumeGeneral(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -13,18 +17,46 @@ export async function uploadResumeGeneral(_prev: ActionState, formData: FormData
     return { error: 'Choose a PDF file to upload.' }
   }
 
+  let fileUrl: string | undefined
   try {
-    const { fileUrl, fileName } = await saveResumeFile(user.id, file)
+    const saved = await saveResumeFile(user.id, file)
+    fileUrl = saved.fileUrl
+
+    // Extract text up front: a scanned or corrupt PDF can never be analyzed,
+    // so it is better to say so now than to store a dead file.
+    const rawText = await extractPdfText(saved.fileUrl)
+
     await prisma.resume.create({
-      data: { userId: user.id, fileName, fileUrl, rawText: '' },
+      data: { userId: user.id, fileName: saved.fileName, fileUrl: saved.fileUrl, rawText },
     })
   } catch (e) {
-    if (e instanceof ResumeUploadError) return { error: e.message }
+    if (fileUrl) await deleteResumeFile(fileUrl)
+    if (e instanceof ResumeUploadError || e instanceof PdfExtractionError) return { error: e.message }
     throw e
   }
 
   revalidatePath('/resume')
+  revalidatePath('/dashboard')
   return undefined
+}
+
+export async function analyzeResumeAction(resumeId: string) {
+  const user = await requireUser()
+
+  try {
+    await analyzeResume(resumeId, user.id)
+  } catch (e) {
+    if (e instanceof AIAnalysisError || e instanceof PdfExtractionError) {
+      redirect(`/resume?analysisError=${encodeURIComponent(e.message)}`)
+    }
+    throw e
+  }
+
+  revalidatePath('/resume')
+  revalidatePath('/evidence')
+  revalidatePath('/dashboard')
+  revalidatePath('/market-insights')
+  redirect('/resume')
 }
 
 export async function deleteResumeAction(resumeId: string) {
@@ -32,7 +64,12 @@ export async function deleteResumeAction(resumeId: string) {
   const resume = await prisma.resume.findUnique({ where: { id: resumeId } })
   if (!resume || resume.userId !== user.id) return
 
+  await clearResumeEvidence(resumeId, user.id)
   await deleteResumeFile(resume.fileUrl)
   await prisma.resume.delete({ where: { id: resumeId } })
+
   revalidatePath('/resume')
+  revalidatePath('/evidence')
+  revalidatePath('/dashboard')
+  revalidatePath('/market-insights')
 }

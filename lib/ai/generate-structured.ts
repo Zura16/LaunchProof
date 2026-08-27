@@ -1,4 +1,4 @@
-import type { ZodSchema } from 'zod'
+import type { ZodType, ZodTypeDef } from 'zod'
 import { getOpenAIClient, isAIConfigured } from '@/lib/ai/client'
 import { SAFETY_DIRECTIVES } from '@/lib/ai/safety-directives'
 
@@ -7,7 +7,10 @@ export class AIAnalysisError extends Error {}
 interface GenerateStructuredOptions<T> {
   system: string
   user: string
-  schema: ZodSchema<T>
+  // Input side is `unknown` because we are parsing arbitrary JSON from the
+  // model; the output side is what callers get back, so schemas using
+  // .default() resolve to their post-parse type.
+  schema: ZodType<T, ZodTypeDef, unknown>
   model?: string
 }
 
