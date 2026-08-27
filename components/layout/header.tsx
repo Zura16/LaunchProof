@@ -6,6 +6,7 @@ import { MobileNav } from '@/components/layout/mobile-nav'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/discover': 'Discover',
   '/jobs': 'Target Jobs',
   '/market-insights': 'Market Insights',
   '/evidence': 'Skill Evidence',

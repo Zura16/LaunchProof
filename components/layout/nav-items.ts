@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Briefcase,
+  Compass,
   BarChart3,
   ShieldCheck,
   Lightbulb,
@@ -18,6 +19,7 @@ export interface NavItem {
 
 export const MAIN_NAV: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Discover', href: '/discover', icon: Compass },
   { name: 'Target Jobs', href: '/jobs', icon: Briefcase },
   { name: 'Market Insights', href: '/market-insights', icon: BarChart3 },
   { name: 'Skill Evidence', href: '/evidence', icon: ShieldCheck },

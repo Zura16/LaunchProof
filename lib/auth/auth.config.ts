@@ -4,6 +4,7 @@ import type { NextAuthConfig } from 'next-auth'
 // Used by middleware (edge runtime) and spread into the full config in auth.ts.
 export const PROTECTED_PATH_PREFIXES = [
   '/dashboard',
+  '/discover',
   '/jobs',
   '/market-insights',
   '/evidence',

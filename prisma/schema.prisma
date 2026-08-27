@@ -260,6 +260,67 @@ model GitHubRepository {
   updatedAt DateTime @updatedAt
 }
 
+// Job Feed — discovered postings from public ATS job-board APIs.
+//
+// These are the endpoints companies publish so their openings can be
+// syndicated (Greenhouse, Ashby, Lever). No scraping of LinkedIn, Indeed,
+// or any board that forbids it.
+enum AtsProvider {
+  GREENHOUSE
+  LEVER
+  ASHBY
+}
+
+model JobSource {
+  id          String      @id @default(cuid())
+  companyName String
+  provider    AtsProvider
+  /// Board identifier in that provider's URL space.
+  boardToken  String
+  isActive    Boolean     @default(true)
+
+  lastFetchedAt DateTime?
+  lastError     String?
+
+  feedJobs FeedJob[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, boardToken])
+}
+
+model FeedJob {
+  id       String      @id @default(cuid())
+  sourceId String
+  source   JobSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  provider AtsProvider
+  /// The ATS's own posting id — used to deduplicate across polls.
+  externalId String
+
+  company  String
+  title    String
+  location String?
+  url      String
+  isRemote Boolean @default(false)
+
+  /// Full text is fetched lazily: polling every board with descriptions
+  /// attached is an order of magnitude more data than the listing alone.
+  descriptionText String? @db.Text
+
+  postedAt    DateTime?
+  /// When LaunchProof first saw it — what "new" is measured against, since
+  /// providers report publish dates inconsistently.
+  firstSeenAt DateTime  @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, externalId])
+  @@index([firstSeenAt])
+  @@index([postedAt])
+}
+
 // Job System
 enum RequirementType {
   REQUIRED
