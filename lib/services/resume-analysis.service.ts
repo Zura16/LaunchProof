@@ -4,6 +4,7 @@ import { extractPdfText } from '@/lib/services/pdf-text.service'
 import { resolveCanonicalSkill } from '@/lib/services/skill-normalization.service'
 import { syncStudentSkills } from '@/lib/services/evidence-sync.service'
 import { recomputeSkillGaps } from '@/lib/services/gap-analysis.service'
+import type { ResumeAnalysisResult } from '@/schemas/resume-analysis'
 import type { EvidenceSourceType, EvidenceStrength } from '@prisma/client'
 
 // A résumé is a self-report. Nothing in it can be verified by LaunchProof,
@@ -25,16 +26,12 @@ interface SkillClaim {
   citation: string
 }
 
-export async function analyzeResume(resumeId: string, userId: string) {
-  const resume = await prisma.resume.findUnique({ where: { id: resumeId } })
-  if (!resume || resume.userId !== userId) {
-    throw new Error('Résumé not found')
-  }
-
-  const rawText = resume.rawText?.trim() ? resume.rawText : await extractPdfText(resume.fileUrl)
-  const result = await analyzeResumeText(rawText)
-
-  // Collect every skill claim the résumé makes, along with why we believe it.
+/**
+ * Turn a parsed résumé into Evidence rows. Shared by the live analysis
+ * pipeline and the demo seed so both derive evidence identically.
+ * Replaces any evidence previously derived from this résumé.
+ */
+export async function persistResumeEvidence(userId: string, resumeId: string, result: ResumeAnalysisResult) {
   const claims: SkillClaim[] = []
 
   for (const project of result.projects) {
@@ -72,44 +69,8 @@ export async function analyzeResume(resumeId: string, userId: string) {
     })
   }
 
-  await prisma.$transaction([
-    prisma.experience.deleteMany({ where: { resumeId } }),
-    prisma.resumeProject.deleteMany({ where: { resumeId } }),
-    // Evidence derived from this résumé is rebuilt from scratch on each
-    // run so a re-analysis never leaves stale claims behind.
-    prisma.evidence.deleteMany({
-      where: { userId, sourceId: resumeId, sourceType: { in: ['RESUME_PROJECT', 'WORK_EXPERIENCE', 'MANUAL'] } },
-    }),
-  ])
-
-  await prisma.resume.update({
-    where: { id: resumeId },
-    data: {
-      rawText,
-      parsedContent: result,
-      experiences: {
-        create: result.experiences.map((e) => ({
-          company: e.company,
-          role: e.role,
-          startDate: e.startDate || null,
-          endDate: e.endDate || null,
-          description: '',
-          bullets: e.bullets,
-          skillsUsed: e.skillsUsed,
-        })),
-      },
-      projects: {
-        create: result.projects.map((p) => ({
-          title: p.title,
-          role: p.role || null,
-          description: p.description,
-          bullets: p.bullets,
-          technologies: p.technologies,
-          repoUrl: p.repoUrl || null,
-          liveUrl: p.liveUrl || null,
-        })),
-      },
-    },
+  await prisma.evidence.deleteMany({
+    where: { userId, sourceId: resumeId, sourceType: { in: ['RESUME_PROJECT', 'WORK_EXPERIENCE', 'MANUAL'] } },
   })
 
   // One Evidence row per skill: keep the strongest claim, but record every
@@ -147,6 +108,53 @@ export async function analyzeResume(resumeId: string, userId: string) {
       },
     })
   }
+}
+
+export async function analyzeResume(resumeId: string, userId: string) {
+  const resume = await prisma.resume.findUnique({ where: { id: resumeId } })
+  if (!resume || resume.userId !== userId) {
+    throw new Error('Résumé not found')
+  }
+
+  const rawText = resume.rawText?.trim() ? resume.rawText : await extractPdfText(resume.fileUrl)
+  const result = await analyzeResumeText(rawText)
+
+  await prisma.$transaction([
+    prisma.experience.deleteMany({ where: { resumeId } }),
+    prisma.resumeProject.deleteMany({ where: { resumeId } }),
+  ])
+
+  await prisma.resume.update({
+    where: { id: resumeId },
+    data: {
+      rawText,
+      parsedContent: result,
+      experiences: {
+        create: result.experiences.map((e) => ({
+          company: e.company,
+          role: e.role,
+          startDate: e.startDate || null,
+          endDate: e.endDate || null,
+          description: '',
+          bullets: e.bullets,
+          skillsUsed: e.skillsUsed,
+        })),
+      },
+      projects: {
+        create: result.projects.map((p) => ({
+          title: p.title,
+          role: p.role || null,
+          description: p.description,
+          bullets: p.bullets,
+          technologies: p.technologies,
+          repoUrl: p.repoUrl || null,
+          liveUrl: p.liveUrl || null,
+        })),
+      },
+    },
+  })
+
+  await persistResumeEvidence(userId, resumeId, result)
 
   await syncStudentSkills(userId)
   await recomputeSkillGaps(userId)

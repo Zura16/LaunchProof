@@ -1,5 +1,10 @@
 import { PrismaClient, SkillCategory, EvidenceStrength, EvidenceSourceType, RequirementType, RequirementImportance, ProjectDifficulty, RecommendationType, RecommendationImpact } from '@prisma/client'
 import { recomputeSkillGaps } from '@/lib/services/gap-analysis.service'
+import { analyzeRepoSnapshot } from '@/lib/services/repo-evidence.service'
+import { persistRepoAnalysis } from '@/lib/services/github-sync.service'
+import { persistResumeEvidence } from '@/lib/services/resume-analysis.service'
+import { syncStudentSkills } from '@/lib/services/evidence-sync.service'
+import type { RepoSnapshot } from '@/lib/github/types'
 
 const prisma = new PrismaClient()
 
@@ -196,147 +201,120 @@ async function main() {
     },
   })
 
-  const repo1 = await prisma.gitHubRepository.create({
-    data: {
-      githubAccountId: ghAccount.id,
+  // Realistic repository snapshots for the demo account. These are run
+  // through the SAME deterministic analyzer as a live GitHub sync, so the
+  // demo's evidence is genuinely derived rather than asserted. The shape of
+  // these fixtures is what produces the flagship "Upgrade CampusConnect"
+  // story: strong frontend/API evidence, thin database evidence, and no
+  // testing, container, CI, or cloud evidence anywhere.
+  const repoSnapshots: RepoSnapshot[] = [
+    {
       name: 'CampusConnect',
       fullName: 'alexchen/CampusConnect',
       description: 'Campus student event and discussion platform',
+      isFork: false,
       stars: 18,
       forks: 4,
-      languages: { TypeScript: 24500, CSS: 4200, HTML: 1800 },
-      primaryLanguage: 'TypeScript',
-      topics: ['react', 'express', 'postgresql', 'rest-api'],
+      topics: ['react', 'express', 'postgresql'],
       repoUrl: 'https://github.com/alexchen/CampusConnect',
-      analysisResult: {
-        hasTests: false,
-        hasDocker: false,
-        hasCI: false,
-        detectedDependencies: ['react', 'express', 'pg', 'typescript'],
+      defaultBranch: 'main',
+      primaryLanguage: 'TypeScript',
+      languages: { TypeScript: 24500, CSS: 4200, HTML: 1800 },
+      filePaths: [
+        'package.json',
+        'src/App.tsx',
+        'src/components/EventCard.tsx',
+        'src/components/DiscussionThread.tsx',
+        'src/types/api.ts',
+        'src/api/events.ts',
+        'server/index.ts',
+        'server/routes/events.ts',
+        'server/routes/auth.ts',
+        'README.md',
+      ],
+      manifests: {
+        'package.json': JSON.stringify({
+          name: 'campusconnect',
+          dependencies: {
+            react: '^18.2.0',
+            'react-dom': '^18.2.0',
+            express: '^4.18.2',
+            pg: '^8.11.0',
+            jsonwebtoken: '^9.0.0',
+          },
+          devDependencies: { typescript: '^5.2.0' },
+        }),
       },
+      readme: '# CampusConnect\n\nA full-stack campus events platform built with React, Express, and PostgreSQL.',
     },
-  })
-
-  const repo2 = await prisma.gitHubRepository.create({
-    data: {
-      githubAccountId: ghAccount.id,
+    {
       name: 'ExpenseTracker',
       fullName: 'alexchen/ExpenseTracker',
       description: 'Personal expense tracking dashboard',
+      isFork: false,
       stars: 9,
       forks: 1,
-      languages: { JavaScript: 12000, CSS: 3100 },
-      primaryLanguage: 'JavaScript',
-      topics: ['react', 'nodejs', 'sqlite'],
+      topics: ['react', 'nodejs'],
       repoUrl: 'https://github.com/alexchen/ExpenseTracker',
-      analysisResult: {
-        hasTests: false,
-        hasDocker: false,
-        hasCI: false,
-        detectedDependencies: ['react', 'express', 'sqlite3'],
+      defaultBranch: 'main',
+      primaryLanguage: 'JavaScript',
+      languages: { JavaScript: 22000, CSS: 3100 },
+      filePaths: [
+        'package.json',
+        'src/index.js',
+        'src/App.jsx',
+        'src/components/SpendingChart.jsx',
+        'server/api.js',
+        'README.md',
+      ],
+      manifests: {
+        'package.json': JSON.stringify({
+          name: 'expensetracker',
+          dependencies: {
+            react: '^18.2.0',
+            'react-dom': '^18.2.0',
+            express: '^4.18.2',
+            sqlite3: '^5.1.6',
+          },
+        }),
       },
+      readme: '# ExpenseTracker\n\nPersonal finance dashboard.',
     },
-  })
-
-  const repo3 = await prisma.gitHubRepository.create({
-    data: {
-      githubAccountId: ghAccount.id,
+    {
       name: 'StudyBuddy',
       fullName: 'alexchen/StudyBuddy',
       description: 'Real-time collaborative study session matching app',
+      isFork: false,
       stars: 5,
       forks: 0,
-      languages: { TypeScript: 8900 },
-      primaryLanguage: 'TypeScript',
-      topics: ['react', 'firebase'],
+      topics: ['react'],
       repoUrl: 'https://github.com/alexchen/StudyBuddy',
-      analysisResult: {
-        hasTests: false,
-        hasDocker: false,
-        hasCI: false,
-        detectedDependencies: ['react', 'firebase'],
+      defaultBranch: 'main',
+      primaryLanguage: 'TypeScript',
+      languages: { TypeScript: 8900 },
+      filePaths: ['package.json', 'src/App.tsx', 'src/match.ts', 'README.md'],
+      manifests: {
+        'package.json': JSON.stringify({
+          name: 'studybuddy',
+          dependencies: { react: '^18.2.0', firebase: '^10.1.0' },
+          devDependencies: { typescript: '^5.2.0' },
+        }),
       },
-    },
-  })
-
-  // 6. Create Student Evidence Graph
-  const evidences = [
-    {
-      skillSlug: 'react',
-      strength: EvidenceStrength.STRONG,
-      sourceType: EvidenceSourceType.GITHUB_REPOSITORY,
-      sourceId: repo1.id,
-      description: 'Multiple active repositories (CampusConnect, ExpenseTracker) using React components and hooks.',
-      metadata: { citations: ['CampusConnect/src/App.tsx', 'package.json: "react": "^18.2.0"'] },
-    },
-    {
-      skillSlug: 'javascript',
-      strength: EvidenceStrength.STRONG,
-      sourceType: EvidenceSourceType.GITHUB_REPOSITORY,
-      sourceId: repo2.id,
-      description: 'Extensive codebase in ExpenseTracker and CampusConnect.',
-      metadata: { citations: ['ExpenseTracker/src/index.js'] },
-    },
-    {
-      skillSlug: 'typescript',
-      strength: EvidenceStrength.STRONG,
-      sourceType: EvidenceSourceType.GITHUB_REPOSITORY,
-      sourceId: repo1.id,
-      description: 'Primary language across CampusConnect repository with typed interfaces.',
-      metadata: { citations: ['CampusConnect/src/types/api.ts'] },
-    },
-    {
-      skillSlug: 'rest-apis',
-      strength: EvidenceStrength.STRONG,
-      sourceType: EvidenceSourceType.RESUME_PROJECT,
-      sourceId: resume.id,
-      description: 'Built 12 Express REST endpoints during internship and implemented REST handlers in CampusConnect.',
-      metadata: { citations: ['TechCorp Internship Bullet 1', 'CampusConnect/src/api/events.ts'] },
-    },
-    {
-      skillSlug: 'sql',
-      strength: EvidenceStrength.MODERATE,
-      sourceType: EvidenceSourceType.GITHUB_REPOSITORY,
-      sourceId: repo2.id,
-      description: 'Used SQLite queries in ExpenseTracker, but schema lacks complex relations and migrations.',
-      metadata: { citations: ['ExpenseTracker/db/init.sql'] },
-    },
-    {
-      skillSlug: 'postgresql',
-      strength: EvidenceStrength.WEAK,
-      sourceType: EvidenceSourceType.RESUME_PROJECT,
-      sourceId: resume.id,
-      description: 'Claimed in CampusConnect description, but database schema files and migrations are missing in repo.',
-      metadata: { citations: ['Resume Project description'] },
+      readme: '# StudyBuddy',
     },
   ]
 
-  for (const ev of evidences) {
-    const skillId = createdSkills[ev.skillSlug]
-    if (skillId) {
-      await prisma.evidence.create({
-        data: {
-          userId: alex.id,
-          skillId,
-          sourceType: ev.sourceType,
-          sourceId: ev.sourceId,
-          strength: ev.strength,
-          description: ev.description,
-          metadata: ev.metadata,
-        },
-      })
-
-      await prisma.studentSkill.upsert({
-        where: { userId_skillId: { userId: alex.id, skillId } },
-        update: { highestStrength: ev.strength },
-        create: {
-          userId: alex.id,
-          skillId,
-          highestStrength: ev.strength,
-        },
-      })
-    }
+  let detectedTotal = 0
+  for (const snapshot of repoSnapshots) {
+    const analysis = analyzeRepoSnapshot(snapshot)
+    await persistRepoAnalysis(alex.id, ghAccount.id, snapshot, analysis)
+    detectedTotal += analysis.detected.length
   }
+  console.log(`   Derived ${detectedTotal} evidence items from ${repoSnapshots.length} repositories.`)
+
+  // 6. Derive résumé evidence through the same path the live analyzer uses.
+  await persistResumeEvidence(alex.id, resume.id, alexResumeParsed)
+
 
   // 7. Seed 12 Target Saved Jobs
   const jobPostingsData = [
@@ -671,8 +649,9 @@ async function main() {
     },
   })
 
-  // 10. Derive skill gaps from the seeded jobs + evidence using the real
-  // gap engine, rather than hardcoding them — keeps seed data honest.
+  // 10. Roll evidence up into StudentSkill, then derive skill gaps — both
+  // through the real engines, so seed data stays honest.
+  await syncStudentSkills(alex.id)
   const gaps = await recomputeSkillGaps(alex.id)
   console.log(`   Computed ${gaps.length} skill gaps from seeded data.`)
 
