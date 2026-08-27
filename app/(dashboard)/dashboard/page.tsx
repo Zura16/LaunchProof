@@ -59,7 +59,7 @@ export default async function DashboardPage() {
   const checklist = [
     { label: 'Upload résumé', done: resumeCount > 0, href: '/resume' },
     { label: 'Connect GitHub', done: !!githubAccount, href: '/onboarding?step=4' },
-    { label: 'Save 5 target jobs', done: savedJobCount >= 5, href: '/jobs/new' },
+    { label: 'Save target jobs from Discover', done: savedJobCount >= 3, href: '/discover' },
   ]
   const setupIncomplete = checklist.some((c) => !c.done)
 
@@ -136,10 +136,10 @@ export default async function DashboardPage() {
             {recentSavedJobs.length === 0 ? (
               <EmptyState
                 title="No target jobs yet"
-                description="Save the jobs you're actually targeting to start building your evidence picture."
+                description="Browse new roles at the companies you're targeting, and save the ones you want analyzed."
                 action={
-                  <Link href="/jobs/new">
-                    <Button size="sm">Add Target Job</Button>
+                  <Link href="/discover">
+                    <Button size="sm">Browse Discover</Button>
                   </Link>
                 }
               />

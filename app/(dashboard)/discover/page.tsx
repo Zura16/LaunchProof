@@ -11,6 +11,7 @@ import { RefreshFeedButton, SaveFeedJobButton } from '@/components/discover/feed
 import { cn } from '@/lib/utils'
 
 const FILTERS = [
+  { key: 'mine', label: 'My companies' },
   { key: 'new', label: 'Newest' },
   { key: 'fit', label: 'Best evidence fit' },
   { key: 'remote', label: 'Remote' },
@@ -33,22 +34,31 @@ export default async function DiscoverPage({
 }) {
   const user = await requireUser()
 
-  const [feedJobs, sources, savedUrls] = await Promise.all([
+  const [feedJobs, sources, savedUrls, profile] = await Promise.all([
     prisma.feedJob.findMany({ orderBy: [{ postedAt: 'desc' }, { firstSeenAt: 'desc' }], take: 120 }),
     prisma.jobSource.findMany({ where: { isActive: true }, select: { companyName: true, lastFetchedAt: true, lastError: true } }),
     prisma.savedJob
       .findMany({ where: { userId: user.id }, select: { jobPosting: { select: { url: true } } } })
       .then((rows) => new Set(rows.map((r) => r.jobPosting.url).filter(Boolean) as string[])),
+    prisma.studentProfile.findUnique({
+      where: { userId: user.id },
+      select: { targetCompanies: true },
+    }),
   ])
+
+  const targetCompanies = profile?.targetCompanies ?? []
+  const targetSet = new Set(targetCompanies.map((c) => c.toLowerCase()))
 
   const fits = await computeFeedFit(
     user.id,
     feedJobs.map((j) => ({ id: j.id, title: j.title, descriptionText: j.descriptionText }))
   )
 
-  const filter = (searchParams.filter ?? 'new') as (typeof FILTERS)[number]['key']
+  const defaultFilter = targetCompanies.length > 0 ? 'mine' : 'new'
+  const filter = (searchParams.filter ?? defaultFilter) as (typeof FILTERS)[number]['key']
 
   let visible = [...feedJobs]
+  if (filter === 'mine') visible = visible.filter((j) => targetSet.has(j.company.toLowerCase()))
   if (filter === 'remote') visible = visible.filter((j) => j.isRemote)
   if (filter === 'fit') {
     visible.sort((a, b) => {
@@ -110,10 +120,10 @@ export default async function DiscoverPage({
       )}
 
       <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
+        {FILTERS.filter((f) => f.key !== 'mine' || targetCompanies.length > 0).map((f) => (
           <Link
             key={f.key}
-            href={f.key === 'new' ? '/discover' : `/discover?filter=${f.key}`}
+            href={f.key === defaultFilter ? '/discover' : `/discover?filter=${f.key}`}
             className={cn(
               'rounded-full border px-3 py-1 text-xs font-medium',
               filter === f.key
@@ -129,11 +139,19 @@ export default async function DiscoverPage({
       {visible.length === 0 ? (
         <EmptyState
           icon={<Compass className="h-5 w-5" />}
-          title={feedJobs.length === 0 ? 'No postings discovered yet' : 'Nothing matches this filter'}
+          title={
+            feedJobs.length === 0
+              ? 'No postings discovered yet'
+              : filter === 'mine'
+                ? 'No open roles at your companies right now'
+                : 'Nothing matches this filter'
+          }
           description={
             feedJobs.length === 0
               ? 'Refresh the feed to pull the latest internship and new-grad engineering roles from tracked company job boards.'
-              : 'Try a different filter, or refresh the feed.'
+              : filter === 'mine'
+                ? `Nothing is open at ${targetCompanies.slice(0, 3).join(', ')}${targetCompanies.length > 3 ? ' and others' : ''} yet. Browse everything under Newest, or adjust your companies in Settings.`
+                : 'Try a different filter, or refresh the feed.'
           }
           action={feedJobs.length === 0 ? <RefreshFeedButton /> : undefined}
         />

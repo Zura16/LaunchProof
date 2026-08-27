@@ -28,6 +28,31 @@ export async function updateProfileAction(_prev: ActionState, formData: FormData
   return undefined
 }
 
+export async function updateTargetCompaniesAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireUser()
+
+  const companies = Array.from(
+    new Set(
+      formData
+        .getAll('companies')
+        .map((c) => String(c).trim())
+        .filter((c) => c.length > 0 && c.length <= 120)
+    )
+  ).slice(0, 100)
+
+  await prisma.studentProfile.update({
+    where: { userId: user.id },
+    data: { targetCompanies: companies },
+  })
+
+  revalidatePath('/settings')
+  revalidatePath('/discover')
+  return undefined
+}
+
 export async function syncGitHubAction() {
   const user = await requireUser()
 

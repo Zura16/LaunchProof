@@ -9,14 +9,18 @@ import { StepStudentInfo } from '@/components/onboarding/step-student-info'
 import { StepCareerGoals } from '@/components/onboarding/step-career-goals'
 import { StepResume } from '@/components/onboarding/step-resume'
 import { StepGitHub } from '@/components/onboarding/step-github'
-import { StepJobs } from '@/components/onboarding/step-jobs'
+import { StepCompanies } from '@/components/onboarding/step-companies'
 
 const STEP_TITLES: Record<number, { title: string; description: string }> = {
   1: { title: 'Tell us about you', description: 'This helps LaunchProof tailor role and skill demand to your situation.' },
   2: { title: 'What are you targeting?', description: 'LaunchProof filters and prioritizes gaps around these goals.' },
   3: { title: 'Upload your résumé', description: 'Optional, but the more evidence you connect, the better your gap analysis.' },
   4: { title: 'Connect GitHub', description: 'Optional. Your repositories become real, checkable evidence.' },
-  5: { title: 'Save your target jobs', description: 'Save at least 3 jobs you actually want so LaunchProof can find real patterns.' },
+  5: {
+    title: 'Which companies are you targeting?',
+    description:
+      'LaunchProof watches these companies’ job boards and surfaces new roles as they appear. You can change this any time.',
+  },
 }
 
 export default async function OnboardingPage({
@@ -69,14 +73,15 @@ export default async function OnboardingPage({
     const githubAccount = await getLinkedGitHubAccount(user.id)
     stepContent = <StepGitHub connectedUsername={githubAccount?.username ?? null} />
   } else {
-    const savedJobs = await prisma.savedJob.findMany({
-      where: { userId: user.id },
-      include: { jobPosting: { select: { company: true, title: true } } },
-      orderBy: { createdAt: 'desc' },
+    const trackedCompanies = await prisma.jobSource.findMany({
+      where: { isActive: true },
+      select: { companyName: true },
+      orderBy: { companyName: 'asc' },
     })
     stepContent = (
-      <StepJobs
-        savedJobs={savedJobs.map((s) => ({ id: s.id, company: s.jobPosting.company, title: s.jobPosting.title }))}
+      <StepCompanies
+        trackedCompanies={trackedCompanies.map((c) => c.companyName)}
+        initial={profile?.targetCompanies ?? []}
       />
     )
   }

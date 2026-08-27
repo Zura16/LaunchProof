@@ -32,8 +32,8 @@ export default async function MarketInsightsPage({ searchParams }: { searchParam
         title="Save a few more target jobs to identify meaningful patterns"
         description={`You have ${savedJobCount} saved job${savedJobCount === 1 ? '' : 's'}. Market Insights needs at least 3 to surface recurring skill demand.`}
         action={
-          <Link href="/jobs/new">
-            <Button size="sm">Add Target Job</Button>
+          <Link href="/discover">
+            <Button size="sm">Browse Discover</Button>
           </Link>
         }
       />

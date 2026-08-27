@@ -59,8 +59,8 @@ export default async function RecommendationsPage() {
           }
           action={
             savedJobCount === 0 ? (
-              <Link href="/jobs/new">
-                <Button size="sm">Add Target Job</Button>
+              <Link href="/discover">
+                <Button size="sm">Browse Discover</Button>
               </Link>
             ) : undefined
           }

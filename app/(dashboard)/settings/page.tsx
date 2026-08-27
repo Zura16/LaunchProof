@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ProfileForm } from '@/components/settings/profile-form'
 import { DeleteAccountButton } from '@/components/settings/delete-account-button'
 import { GitHubActions } from '@/components/settings/github-section'
+import { TargetCompaniesForm } from '@/components/settings/target-companies-form'
 import { toDateInputValue } from '@/lib/utils'
 import type { RepoAnalysis } from '@/lib/github/types'
 
@@ -32,11 +33,16 @@ function Signal({ ok, label }: { ok: boolean; label: string }) {
 export default async function SettingsPage({ searchParams }: { searchParams: { githubError?: string } }) {
   const user = await requireUser()
 
-  const [profile, githubAccount] = await Promise.all([
+  const [profile, githubAccount, trackedCompanies] = await Promise.all([
     prisma.studentProfile.findUniqueOrThrow({ where: { userId: user.id } }),
     prisma.gitHubAccount.findUnique({
       where: { userId: user.id },
       include: { repositories: { orderBy: { stars: 'desc' } } },
+    }),
+    prisma.jobSource.findMany({
+      where: { isActive: true },
+      select: { companyName: true },
+      orderBy: { companyName: 'asc' },
     }),
   ])
 
@@ -57,6 +63,21 @@ export default async function SettingsPage({ searchParams }: { searchParams: { g
               graduationDate: toDateInputValue(profile.graduationDate),
               academicYear: profile.academicYear,
             }}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Target companies</CardTitle>
+          <CardDescription>
+            Discover highlights new roles at these companies as their job boards publish them.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TargetCompaniesForm
+            trackedCompanies={trackedCompanies.map((c) => c.companyName)}
+            initial={profile.targetCompanies}
           />
         </CardContent>
       </Card>

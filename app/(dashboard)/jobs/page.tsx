@@ -35,11 +35,18 @@ export default async function JobsPage() {
         <EmptyState
           icon={<Briefcase className="h-5 w-5" />}
           title="No target jobs saved yet"
-          description="Paste in a posting you're actually targeting. LaunchProof will extract its required and preferred skills so it can compare them against your evidence."
+          description="Save roles from Discover, or paste a posting you found elsewhere. LaunchProof extracts each job's required and preferred skills so it can compare them against your evidence."
           action={
-            <Link href="/jobs/new">
-              <Button size="sm">Add Target Job</Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/discover">
+                <Button size="sm">Browse Discover</Button>
+              </Link>
+              <Link href="/jobs/new">
+                <Button size="sm" variant="outline">
+                  Paste a job
+                </Button>
+              </Link>
+            </div>
           }
         />
       ) : (

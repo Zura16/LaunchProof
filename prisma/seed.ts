@@ -43,6 +43,7 @@ async function main() {
       workAuthorization: 'US_CITIZEN',
       sponsorshipRequired: false,
       targetRoleCategories: ['SWE', 'BACKEND', 'FULLSTACK'],
+      targetCompanies: ['Stripe', 'Cloudflare', 'Figma', 'Notion', 'Databricks', 'Ramp'],
       onboardingCompletedAt: new Date(),
     },
   })

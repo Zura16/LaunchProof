@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 
-const STEPS = ['Student Info', 'Career Goals', 'Résumé', 'GitHub', 'Target Jobs']
+const STEPS = ['Student Info', 'Career Goals', 'Résumé', 'GitHub', 'Companies']
 
 export function ProgressSteps({ current }: { current: number }) {
   return (

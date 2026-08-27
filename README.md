@@ -14,7 +14,7 @@ It's built around one idea: a student shouldn't merely *have* a skill — they s
 Target Jobs → Requirements → Skills → Student Evidence → Gaps → Recommended Actions
 ```
 
-1. **Save target jobs.** Paste in real postings. Requirement extraction pulls out skills and classifies each as required, preferred, a responsibility, or an eligibility criterion.
+1. **Pick target companies.** LaunchProof polls their job boards and surfaces new internship and new-grad engineering roles as they appear. Save the ones you want analyzed — or paste a posting you found elsewhere. Requirement extraction pulls out skills and classifies each as required, preferred, a responsibility, or an eligibility criterion.
 2. **Connect evidence.** Upload a résumé and connect GitHub. Repositories are inspected for dependencies, test directories, Dockerfiles, and CI config.
 3. **See the gaps.** Skill demand across your saved jobs is compared against your evidence, ranked by how often it's asked for, how central it is, and how far you are from proving it.
 4. **Get a plan.** The highest-impact gaps become a concrete project plan with checkable tasks.
@@ -150,7 +150,7 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the Vercel walkthrough and other host
 
 ## Scope
 
-Deliberately **not** built: browser extension, auto-apply, job-board scraping. Jobs are pasted in by the user.
+Deliberately **not** built: browser extension, auto-apply, and scraping of boards that forbid it. The job feed uses the public APIs Greenhouse, Ashby, and Lever publish for syndication; anything else can be pasted in manually.
 
 ## Status
 

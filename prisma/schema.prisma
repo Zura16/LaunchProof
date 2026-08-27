@@ -84,6 +84,10 @@ model StudentProfile {
   workAuthorization     String // US_CITIZEN, GREEN_CARD, F1_OPT, CPT, OTHER
   sponsorshipRequired   Boolean   @default(false)
   targetRoleCategories  String[] // SWE, BACKEND, FRONTEND, FULLSTACK, MOBILE, DATA
+  /// Companies the student is aiming at. Free-form names rather than a
+  /// relation to JobSource, so they can name employers LaunchProof does not
+  /// yet track; the feed matches on name.
+  targetCompanies       String[]
   onboardingCompletedAt DateTime?
 
   createdAt DateTime @default(now())

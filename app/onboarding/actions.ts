@@ -4,10 +4,9 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
-import { studentInfoSchema, careerGoalsSchema, manualJobSchema } from '@/schemas/onboarding'
+import { studentInfoSchema, careerGoalsSchema } from '@/schemas/onboarding'
 import { saveResumeFile, deleteResumeFile, ResumeUploadError } from '@/lib/services/resume-storage.service'
 import { extractPdfTextFromBuffer, PdfExtractionError } from '@/lib/services/pdf-text.service'
-import { createManualSavedJob } from '@/lib/services/saved-jobs.service'
 
 export type ActionState = { error?: string } | undefined
 
@@ -95,35 +94,32 @@ export async function uploadResumeAction(_prev: ActionState, formData: FormData)
   redirect('/onboarding?step=4')
 }
 
-export async function saveOnboardingJob(_prev: ActionState, formData: FormData): Promise<ActionState> {
+/**
+ * Final onboarding step: which companies the student is aiming at.
+ *
+ * This replaced a step that required pasting three full job descriptions
+ * before the app could be used at all. Now that Discover polls company job
+ * boards directly, naming companies is both less work and more useful —
+ * the feed can surface their roles instead of the student transcribing them.
+ */
+export async function saveTargetCompanies(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser()
-  const parsed = manualJobSchema.safeParse({
-    company: formData.get('company'),
-    title: formData.get('title'),
-    location: formData.get('location'),
-    url: formData.get('url'),
-    description: formData.get('description'),
-  })
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
-  }
 
-  await createManualSavedJob(user.id, parsed.data)
-  revalidatePath('/onboarding')
-  return undefined
-}
-
-export async function completeOnboarding(_prev: ActionState, _formData: FormData): Promise<ActionState> {
-  const user = await requireUser()
-  const savedJobCount = await prisma.savedJob.count({ where: { userId: user.id } })
-  if (savedJobCount < 3) {
-    return { error: 'Save at least 3 target jobs before finishing setup.' }
-  }
+  const companies = Array.from(
+    new Set(
+      formData
+        .getAll('companies')
+        .map((c) => String(c).trim())
+        .filter((c) => c.length > 0 && c.length <= 120)
+    )
+  ).slice(0, 100)
 
   await prisma.studentProfile.update({
     where: { userId: user.id },
-    data: { onboardingCompletedAt: new Date() },
+    data: { targetCompanies: companies, onboardingCompletedAt: new Date() },
   })
 
-  redirect('/dashboard')
+  revalidatePath('/discover')
+  revalidatePath('/dashboard')
+  redirect('/discover')
 }
