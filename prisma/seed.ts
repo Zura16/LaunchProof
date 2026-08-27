@@ -1,4 +1,4 @@
-import { PrismaClient, AtsProvider, SkillCategory, EvidenceStrength, EvidenceSourceType, RequirementType, RequirementImportance } from '@prisma/client'
+import { PrismaClient, SkillCategory, EvidenceStrength, EvidenceSourceType, RequirementType, RequirementImportance } from '@prisma/client'
 import { recomputeSkillGaps } from '@/lib/services/gap-analysis.service'
 import { analyzeRepoSnapshot } from '@/lib/services/repo-evidence.service'
 import { persistRepoAnalysis } from '@/lib/services/github-sync.service'
@@ -6,6 +6,7 @@ import { persistResumeEvidence } from '@/lib/services/resume-analysis.service'
 import { syncStudentSkills } from '@/lib/services/evidence-sync.service'
 import { regenerateRecommendations } from '@/lib/services/recommendation-engine.service'
 import { generateProjectPlanFromRecommendation } from '@/lib/services/project-plan-generator.service'
+import { JOB_SOURCES } from '@/lib/jobfeed/sources'
 import type { RepoSnapshot } from '@/lib/github/types'
 
 const prisma = new PrismaClient()
@@ -593,48 +594,15 @@ async function main() {
     console.log(`   Created project plan: ${plan.title}`)
   }
 
-  // 10. Seed the job-feed sources.
-  //
-  // These are public ATS job-board endpoints that companies publish so their
-  // openings can be syndicated — not scraped boards. Every token below was
-  // verified to return postings. Companies move between ATS providers, so a
-  // source that starts failing is recorded on the row rather than silently
-  // dropped.
-  const jobSources = [
-    { companyName: 'Stripe', provider: AtsProvider.GREENHOUSE, boardToken: 'stripe' },
-    { companyName: 'Airbnb', provider: AtsProvider.GREENHOUSE, boardToken: 'airbnb' },
-    { companyName: 'Databricks', provider: AtsProvider.GREENHOUSE, boardToken: 'databricks' },
-    { companyName: 'Robinhood', provider: AtsProvider.GREENHOUSE, boardToken: 'robinhood' },
-    { companyName: 'Instacart', provider: AtsProvider.GREENHOUSE, boardToken: 'instacart' },
-    { companyName: 'Affirm', provider: AtsProvider.GREENHOUSE, boardToken: 'affirm' },
-    { companyName: 'Dropbox', provider: AtsProvider.GREENHOUSE, boardToken: 'dropbox' },
-    { companyName: 'Reddit', provider: AtsProvider.GREENHOUSE, boardToken: 'reddit' },
-    { companyName: 'Twilio', provider: AtsProvider.GREENHOUSE, boardToken: 'twilio' },
-    { companyName: 'Cloudflare', provider: AtsProvider.GREENHOUSE, boardToken: 'cloudflare' },
-    { companyName: 'GitLab', provider: AtsProvider.GREENHOUSE, boardToken: 'gitlab' },
-    { companyName: 'Asana', provider: AtsProvider.GREENHOUSE, boardToken: 'asana' },
-    { companyName: 'Lyft', provider: AtsProvider.GREENHOUSE, boardToken: 'lyft' },
-    { companyName: 'Pinterest', provider: AtsProvider.GREENHOUSE, boardToken: 'pinterest' },
-    { companyName: 'Figma', provider: AtsProvider.GREENHOUSE, boardToken: 'figma' },
-    { companyName: 'Anthropic', provider: AtsProvider.GREENHOUSE, boardToken: 'anthropic' },
-    { companyName: 'Coinbase', provider: AtsProvider.GREENHOUSE, boardToken: 'coinbase' },
-    { companyName: 'Brex', provider: AtsProvider.GREENHOUSE, boardToken: 'brex' },
-    { companyName: 'Scale AI', provider: AtsProvider.GREENHOUSE, boardToken: 'scaleai' },
-    { companyName: 'Discord', provider: AtsProvider.GREENHOUSE, boardToken: 'discord' },
-    { companyName: 'OpenAI', provider: AtsProvider.ASHBY, boardToken: 'openai' },
-    { companyName: 'Ramp', provider: AtsProvider.ASHBY, boardToken: 'ramp' },
-    { companyName: 'Linear', provider: AtsProvider.ASHBY, boardToken: 'linear' },
-    { companyName: 'Vanta', provider: AtsProvider.ASHBY, boardToken: 'vanta' },
-  ]
-
-  for (const src of jobSources) {
+  // 10. Seed the job-feed sources (see lib/jobfeed/sources.ts).
+  for (const src of JOB_SOURCES) {
     await prisma.jobSource.upsert({
       where: { provider_boardToken: { provider: src.provider, boardToken: src.boardToken } },
       update: { companyName: src.companyName, isActive: true },
       create: src,
     })
   }
-  console.log(`   Seeded ${jobSources.length} job-feed sources.`)
+  console.log(`   Seeded ${JOB_SOURCES.length} job-feed sources.`)
 
   console.log('✅ LaunchProof seed completed successfully!')
 }
