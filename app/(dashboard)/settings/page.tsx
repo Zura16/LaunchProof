@@ -11,6 +11,11 @@ import { GitHubActions } from '@/components/settings/github-section'
 import { toDateInputValue } from '@/lib/utils'
 import type { RepoAnalysis } from '@/lib/github/types'
 
+// A full sync reads every public repository from GitHub — roughly 30s for a
+// 29-repo account, bounded by GitHub's own latency rather than our code.
+// The default serverless limit would abort it partway.
+export const maxDuration = 300
+
 function Signal({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className="inline-flex items-center gap-1 text-xs text-slate-500">

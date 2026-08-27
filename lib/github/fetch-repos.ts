@@ -18,6 +18,15 @@ const MANIFEST_FILES = [
 const MAX_REPOS = 30
 const MAX_MANIFESTS_PER_REPO = 4
 const MAX_TREE_ENTRIES = 2000
+/**
+ * Repositories fetched in parallel; each costs ~4 API calls.
+ *
+ * Measured against a real 29-repo account: sequential 97s, 8-wide 33.5s,
+ * 16-wide 32.5s, 24-wide 31.8s. Past ~8 the wall time is set by the slowest
+ * individual repository (a recursive tree call on a large repo), not by
+ * throughput, so raising this further buys nothing and only adds load.
+ */
+const REPO_CONCURRENCY = 12
 
 async function fetchTextFile(octokit: Octokit, owner: string, repo: string, path: string): Promise<string | null> {
   try {
@@ -124,14 +133,32 @@ export async function fetchRepoSnapshots(accessToken: string): Promise<RepoSnaps
   // student built anything.
   const owned = repos.filter((r) => !r.fork)
 
+  // Each repository needs several API calls (languages, tree, manifests,
+  // README). Fetching them one repository at a time took ~97s for 29 repos,
+  // which both feels broken to the user and exceeds serverless time limits.
+  // A bounded worker pool keeps that well within budget while staying far
+  // under GitHub's 5,000 requests/hour authenticated allowance.
   const snapshots: RepoSnapshot[] = []
-  for (const repo of owned) {
-    try {
-      snapshots.push(await buildSnapshot(octokit, repo))
-    } catch {
-      // One unreadable repository should not fail the whole sync.
+  const queue = [...owned]
+
+  async function worker() {
+    for (;;) {
+      const repo = queue.shift()
+      if (!repo) return
+      try {
+        snapshots.push(await buildSnapshot(octokit, repo))
+      } catch {
+        // One unreadable repository should not fail the whole sync.
+      }
     }
   }
+
+  await Promise.all(Array.from({ length: Math.min(REPO_CONCURRENCY, owned.length) }, worker))
+
+  // Preserve the API's ordering (most recently pushed first), which the
+  // concurrent completion order would otherwise scramble.
+  const rank = new Map(owned.map((r, i) => [r.full_name, i]))
+  snapshots.sort((a, b) => (rank.get(a.fullName) ?? 0) - (rank.get(b.fullName) ?? 0))
 
   return snapshots
 }
