@@ -73,5 +73,36 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ env, githubCredentialCheck }, { status: 200 })
+  // The OAuth callback differs from demo sign-in in one important way: it
+  // goes through the Prisma adapter to create User and Account rows. Exercise
+  // exactly that, so an adapter/database write failure is not mistaken for a
+  // provider misconfiguration.
+  let adapterWriteCheck: unknown = 'not run'
+  try {
+    const { prisma } = await import('@/lib/db/prisma')
+    const probeEmail = `diagnostic-probe-${Date.now()}@launchproof.invalid`
+    const user = await prisma.user.create({ data: { email: probeEmail, name: 'Diagnostic Probe' } })
+    await prisma.account.create({
+      data: {
+        userId: user.id,
+        type: 'oauth',
+        provider: 'diagnostic',
+        providerAccountId: `probe-${Date.now()}`,
+        access_token: 'probe',
+        scope: 'read:user user:email',
+      },
+    })
+    const accounts = await prisma.account.count({ where: { userId: user.id } })
+    await prisma.user.delete({ where: { id: user.id } })
+    adapterWriteCheck = {
+      verdict: accounts === 1 ? 'ADAPTER WRITES OK — User and Account rows create and cascade-delete' : 'unexpected account count',
+    }
+  } catch (e) {
+    adapterWriteCheck = {
+      verdict: 'ADAPTER WRITE FAILED — this is what breaks the OAuth callback',
+      error: e instanceof Error ? e.message.slice(0, 400) : String(e),
+    }
+  }
+
+  return NextResponse.json({ env, githubCredentialCheck, adapterWriteCheck }, { status: 200 })
 }

@@ -34,6 +34,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // pinned by NEXTAUTH_URL/AUTH_URL, so the forwarded host is trustworthy.
   // Can be overridden per-deployment with AUTH_TRUST_HOST.
   trustHost: true,
+  // Auth.js collapses most failures into a generic "Configuration" message
+  // for the user. Log the underlying cause so the deployment's runtime logs
+  // say what actually went wrong.
+  logger: {
+    error(error) {
+      console.error('[auth][error]', error?.name, error?.message, (error as { cause?: unknown })?.cause ?? '')
+    },
+  },
   providers: [
     ...(GITHUB_ENABLED
       ? [
