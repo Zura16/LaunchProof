@@ -118,5 +118,20 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ env, githubCredentialCheck, adapterWriteCheck }, { status: 200 })
+  // Vercel injects a Blob store's token as BLOB_READ_WRITE_TOKEN by default,
+  // but prefixes it when the store is connected with a custom prefix. List
+  // matching variable *names* (never values) so a renamed token is visible.
+  const blobRelatedVarNames = Object.keys(process.env).filter((k) => /blob|storage/i.test(k)).sort()
+
+  const { activeStorageDriver, resumeUploadsAvailable } = await import('@/lib/services/resume-storage.service')
+  const storage = {
+    driver: activeStorageDriver(),
+    uploadsAvailable: resumeUploadsAvailable(),
+    onServerless: !!process.env.VERCEL,
+  }
+
+  return NextResponse.json(
+    { env, storage, blobRelatedVarNames, githubCredentialCheck, adapterWriteCheck },
+    { status: 200 }
+  )
 }

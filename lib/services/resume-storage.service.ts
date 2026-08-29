@@ -23,8 +23,20 @@ export class ResumeUploadError extends Error {}
  */
 export type StorageDriver = 'blob' | 'local'
 
+/**
+ * Vercel injects a Blob store's token as BLOB_READ_WRITE_TOKEN, but prefixes
+ * it (e.g. RESUMES_BLOB_READ_WRITE_TOKEN) when the store is connected under a
+ * custom prefix. Accept either, so connecting a store just works instead of
+ * silently leaving uploads disabled.
+ */
+export function blobToken(): string | undefined {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN
+  const key = Object.keys(process.env).find((k) => k.endsWith('BLOB_READ_WRITE_TOKEN'))
+  return key ? process.env[key] : undefined
+}
+
 export function activeStorageDriver(): StorageDriver {
-  return process.env.BLOB_READ_WRITE_TOKEN ? 'blob' : 'local'
+  return blobToken() ? 'blob' : 'local'
 }
 
 /**
@@ -78,7 +90,7 @@ export async function saveResumeFile(userId: string, file: File): Promise<Stored
       const { url } = await put(`resumes/${storedName}`, buffer, {
         access: 'public',
         contentType: 'application/pdf',
-        token: process.env.BLOB_READ_WRITE_TOKEN,
+        token: blobToken(),
       })
       return { fileUrl: url, fileName: file.name, buffer }
     } catch (e) {
@@ -115,7 +127,7 @@ export async function saveResumeFile(userId: string, file: File): Promise<Stored
 export async function deleteResumeFile(fileUrl: string): Promise<void> {
   if (fileUrl.startsWith('http')) {
     const { del } = await import('@vercel/blob')
-    await del(fileUrl, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => undefined)
+    await del(fileUrl, { token: blobToken() }).catch(() => undefined)
     return
   }
 
