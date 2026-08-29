@@ -15,15 +15,25 @@ export async function getLinkedGitHubAccount(userId: string) {
   const account = await prisma.account.findFirst({ where: { userId, provider: 'github' } })
   if (!account?.access_token) return null
 
-  const octokit = new Octokit({ auth: account.access_token })
-  const { data } = await octokit.rest.users.getAuthenticated()
+  // This is a live call to GitHub during a page render. It can fail for
+  // reasons that have nothing to do with the student — a revoked token, an
+  // expired one, rate limiting, or GitHub being down. None of those should
+  // take down onboarding, so a failure degrades to "not connected yet"
+  // instead of throwing out of the render.
+  try {
+    const octokit = new Octokit({ auth: account.access_token })
+    const { data } = await octokit.rest.users.getAuthenticated()
 
-  return prisma.gitHubAccount.create({
-    data: {
-      userId,
-      username: data.login,
-      avatarUrl: data.avatar_url,
-      profileUrl: data.html_url,
-    },
-  })
+    return await prisma.gitHubAccount.create({
+      data: {
+        userId,
+        username: data.login,
+        avatarUrl: data.avatar_url,
+        profileUrl: data.html_url,
+      },
+    })
+  } catch (e) {
+    console.error('[github] could not link account during onboarding:', e instanceof Error ? e.message : e)
+    return null
+  }
 }
