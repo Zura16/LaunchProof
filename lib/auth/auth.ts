@@ -8,6 +8,22 @@ import { authConfig } from "@/lib/auth/auth.config"
 
 export const DEMO_ACCOUNT_EMAIL = "alex.chen@example.edu"
 
+/**
+ * An OAuth provider is only usable if both halves of its credential are
+ * present. Registering one without them still renders a sign-in button, but
+ * the handshake fails at the provider with an opaque error — Google returns
+ * "Error 400: invalid_request" — which looks like a broken app rather than
+ * missing configuration. So providers are registered conditionally and the
+ * sign-in page offers only what can actually work.
+ */
+function isConfigured(id?: string, secret?: string): boolean {
+  const usable = (v?: string) => !!v && v.trim().length > 0 && !/^(dummy|your-|xxx|placeholder)/i.test(v)
+  return usable(id) && usable(secret)
+}
+
+export const GITHUB_ENABLED = isConfigured(process.env.GITHUB_CLIENT_ID, process.env.GITHUB_CLIENT_SECRET)
+export const GOOGLE_ENABLED = isConfigured(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET)
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
@@ -19,24 +35,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // Can be overridden per-deployment with AUTH_TRUST_HOST.
   trustHost: true,
   providers: [
-    GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      authorization: {
-        params: {
-          // Least privilege: LaunchProof only ever reads public repository
-          // metadata, and public repos are readable without any repo scope.
-          // `public_repo` was removed deliberately — it grants *write* access
-          // to every public repository, which this app never needs and which
-          // is a lot to ask a student to approve just to have code inspected.
-          scope: "read:user user:email",
-        },
-      },
-    }),
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
+    ...(GITHUB_ENABLED
+      ? [
+          GitHub({
+            clientId: process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+            authorization: {
+              params: {
+                // Least privilege: LaunchProof only ever reads public repository
+                // metadata, and public repos are readable without any repo scope.
+                // `public_repo` was removed deliberately — it grants *write* access
+                // to every public repository, which this app never needs and which
+                // is a lot to ask a student to approve just to have code inspected.
+                scope: "read:user user:email",
+              },
+            },
+          }),
+        ]
+      : []),
+    ...(GOOGLE_ENABLED
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
     // Lets anyone explore the fully seeded Alex Chen demo account without
     // OAuth credentials. Intentionally locked to one fixed, pre-seeded
     // account rather than accepting an arbitrary email — this is NOT a
