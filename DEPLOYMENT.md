@@ -92,7 +92,9 @@ If using GitHub or Google sign-in, set the callback URLs on those apps to your d
 
 ## Automatic job-feed refresh
 
-`vercel.json` registers an hourly cron hitting `/api/cron/refresh-feed`.
+`vercel.json` registers a daily cron hitting `/api/cron/refresh-feed` at
+13:00 UTC — early morning US time, so postings published overnight are in the
+feed before anyone looks.
 
 Set **`CRON_SECRET`** (`openssl rand -hex 32`) in the project's environment
 variables. Vercel sends it as `Authorization: Bearer <CRON_SECRET>`; the route
@@ -100,10 +102,14 @@ returns 401 without it, and 503 if the variable is unset — it will not run
 unauthenticated, because a public endpoint that fans out to 70+ external APIs
 is a denial-of-wallet lever.
 
-> **Cron frequency is plan-dependent.** Vercel's Hobby tier permits one
-> execution per day regardless of the schedule string; hourly requires Pro.
-> On Hobby the feed still refreshes daily automatically, and the in-app
-> "Refresh feed" button works at any time.
+> **The schedule is set for Vercel's Hobby tier**, which allows one execution
+> per day. Vercel rejects the deployment outright if `vercel.json` asks for
+> more — an hourly `0 * * * *` fails with "Hobby accounts are limited to daily
+> cron jobs".
+>
+> On Pro, change the schedule to `0 * * * *` for hourly refreshes. Either way
+> the in-app **Refresh feed** button polls on demand, so a student never has
+> to wait for the next scheduled run.
 
 A full pass over the seeded boards took ~12–19s, well inside the route's
 300s `maxDuration`.
