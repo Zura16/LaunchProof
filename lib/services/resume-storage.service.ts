@@ -27,6 +27,20 @@ export function activeStorageDriver(): StorageDriver {
   return process.env.BLOB_READ_WRITE_TOKEN ? 'blob' : 'local'
 }
 
+/**
+ * Serverless platforms ship a read-only filesystem outside /tmp, so the local
+ * driver cannot work there. Detecting it lets uploads fail with an
+ * explanation instead of an EROFS crash the user cannot act on.
+ */
+function isServerlessRuntime(): boolean {
+  return !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.NETLIFY
+}
+
+/** Whether this deployment can actually persist an uploaded file. */
+export function resumeUploadsAvailable(): boolean {
+  return activeStorageDriver() === 'blob' || !isServerlessRuntime()
+}
+
 function validate(file: File): void {
   if (file.type !== 'application/pdf') {
     throw new ResumeUploadError('Only PDF files are supported.')
@@ -59,17 +73,42 @@ export async function saveResumeFile(userId: string, file: File): Promise<Stored
   const storedName = storedNameFor(userId, file.name)
 
   if (activeStorageDriver() === 'blob') {
-    const { put } = await import('@vercel/blob')
-    const { url } = await put(`resumes/${storedName}`, buffer, {
-      access: 'public',
-      contentType: 'application/pdf',
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    })
-    return { fileUrl: url, fileName: file.name, buffer }
+    try {
+      const { put } = await import('@vercel/blob')
+      const { url } = await put(`resumes/${storedName}`, buffer, {
+        access: 'public',
+        contentType: 'application/pdf',
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      })
+      return { fileUrl: url, fileName: file.name, buffer }
+    } catch (e) {
+      throw new ResumeUploadError(
+        `Object storage rejected the upload: ${e instanceof Error ? e.message : 'unknown error'}`
+      )
+    }
   }
 
-  await mkdir(UPLOAD_ROOT, { recursive: true })
-  await writeFile(path.join(UPLOAD_ROOT, storedName), buffer)
+  if (isServerlessRuntime()) {
+    throw new ResumeUploadError(
+      'Résumé uploads are not configured on this deployment. Its filesystem is temporary, so files must go to object storage — set BLOB_READ_WRITE_TOKEN. Everything else in LaunchProof works without it.'
+    )
+  }
+
+  try {
+    await mkdir(UPLOAD_ROOT, { recursive: true })
+    await writeFile(path.join(UPLOAD_ROOT, storedName), buffer)
+  } catch (e) {
+    // A filesystem failure is a deployment problem, not something the student
+    // did wrong — surface it as a recoverable upload error rather than an
+    // unhandled crash.
+    const code = (e as NodeJS.ErrnoException)?.code
+    throw new ResumeUploadError(
+      code === 'EROFS' || code === 'EACCES' || code === 'EPERM'
+        ? 'This deployment cannot write uploaded files to disk. Configure object storage (BLOB_READ_WRITE_TOKEN) to enable résumé uploads.'
+        : 'The résumé could not be saved. Please try again.'
+    )
+  }
+
   return { fileUrl: `/uploads/resumes/${storedName}`, fileName: file.name, buffer }
 }
 

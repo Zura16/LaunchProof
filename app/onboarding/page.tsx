@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
 import { toDateInputValue } from '@/lib/utils'
 import { getLinkedGitHubAccount } from '@/lib/services/github-connect.service'
+import { resumeUploadsAvailable } from '@/lib/services/resume-storage.service'
 import { ProgressSteps } from '@/components/onboarding/progress-steps'
 import { StepStudentInfo } from '@/components/onboarding/step-student-info'
 import { StepCareerGoals } from '@/components/onboarding/step-career-goals'
@@ -68,7 +69,7 @@ export default async function OnboardingPage({
     )
   } else if (step === 3) {
     const resume = await prisma.resume.findFirst({ where: { userId: user.id }, orderBy: { createdAt: 'desc' } })
-    stepContent = <StepResume existingFileName={resume?.fileName} />
+    stepContent = <StepResume existingFileName={resume?.fileName} uploadsAvailable={resumeUploadsAvailable()} />
   } else if (step === 4) {
     const githubAccount = await getLinkedGitHubAccount(user.id)
     stepContent = <StepGitHub connectedUsername={githubAccount?.username ?? null} />
