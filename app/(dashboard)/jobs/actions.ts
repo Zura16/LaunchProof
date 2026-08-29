@@ -10,6 +10,7 @@ import { createManualSavedJob } from '@/lib/services/saved-jobs.service'
 import { analyzeJobPosting } from '@/lib/services/job-analysis.service'
 import { refreshDerivedInsights } from '@/lib/services/recommendation-engine.service'
 import { AIAnalysisError } from '@/lib/ai/generate-structured'
+import { consumeAiQuota, refundAiQuota, RateLimitError } from '@/lib/ai/rate-limit'
 import type { ActionState } from '@/app/onboarding/actions'
 
 export async function addJobAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -79,9 +80,21 @@ export async function analyzeJobAction(savedJobId: string) {
   const saved = await prisma.savedJob.findUnique({ where: { id: savedJobId } })
   if (!saved || saved.userId !== user.id) return
 
+  let quotaId: string
+  try {
+    quotaId = await consumeAiQuota(user.id, 'JOB_ANALYSIS')
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      redirect(`/jobs/${savedJobId}?analysisError=${encodeURIComponent(e.message)}`)
+    }
+    throw e
+  }
+
   try {
     await analyzeJobPosting(saved.jobPostingId)
   } catch (e) {
+    // The user shouldn't lose quota because the model or network failed.
+    await refundAiQuota(quotaId)
     if (e instanceof AIAnalysisError) {
       redirect(`/jobs/${savedJobId}?analysisError=${encodeURIComponent(e.message)}`)
     }

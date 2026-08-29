@@ -116,6 +116,31 @@ A full pass over the seeded boards took ~12–19s, well inside the route's
 
 ---
 
+## Cost control
+
+Every job analysis, résumé parse, and project-plan draft is an OpenAI call
+billed to the deployment's key. Each is capped per user per rolling 24 hours:
+
+| Operation | Env var | Default |
+|---|---|---|
+| Job analysis | `AI_LIMIT_JOB_ANALYSIS` | 30/day |
+| Résumé analysis | `AI_LIMIT_RESUME_ANALYSIS` | 10/day |
+| Project plans | `AI_LIMIT_PROJECT_PLAN` | 15/day |
+
+Set any to `0` to disable that operation. Limits are counted in the database
+rather than in memory, because serverless instances do not share state — an
+in-process counter would reset on cold start and be enforced separately per
+instance, which is no limit at all.
+
+A user who hits a cap sees when it resets, and quota is refunded when a call
+fails for reasons outside their control, so an outage does not burn anyone's
+allowance.
+
+The job feed and GitHub sync are **not** metered: they call free public APIs,
+not a paid one.
+
+---
+
 ## Setting up GitHub OAuth
 
 Optional — sign-in works via Google or the demo account without it. Needed for

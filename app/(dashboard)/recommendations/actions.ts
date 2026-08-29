@@ -6,10 +6,31 @@ import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
 import { generateProjectPlanFromRecommendation } from '@/lib/services/project-plan-generator.service'
 import { regenerateRecommendations } from '@/lib/services/recommendation-engine.service'
+import { consumeAiQuota, refundAiQuota, RateLimitError } from '@/lib/ai/rate-limit'
 
 export async function createProjectPlanAction(recommendationId: string) {
   const user = await requireUser()
-  const plan = await generateProjectPlanFromRecommendation(recommendationId, user.id)
+
+  // Plan drafting falls back to deterministic templates when AI is
+  // unavailable, but the AI path is the default and costs money, so it is
+  // metered like the others.
+  let quotaId: string
+  try {
+    quotaId = await consumeAiQuota(user.id, 'PROJECT_PLAN')
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      redirect(`/recommendations?planError=${encodeURIComponent(e.message)}`)
+    }
+    throw e
+  }
+
+  let plan
+  try {
+    plan = await generateProjectPlanFromRecommendation(recommendationId, user.id)
+  } catch (e) {
+    await refundAiQuota(quotaId)
+    throw e
+  }
 
   revalidatePath('/projects')
   revalidatePath('/recommendations')

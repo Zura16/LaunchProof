@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Lightbulb } from 'lucide-react'
+import { Lightbulb, AlertTriangle } from 'lucide-react'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -31,7 +31,7 @@ const TYPE_LABEL: Record<string, string> = {
   APPLY_NOW: 'Apply now',
 }
 
-export default async function RecommendationsPage() {
+export default async function RecommendationsPage({ searchParams }: { searchParams: { planError?: string } }) {
   const user = await requireUser()
 
   const [recommendations, savedJobCount] = await Promise.all([
@@ -71,6 +71,15 @@ export default async function RecommendationsPage() {
 
   return (
     <div className="space-y-4">
+      {searchParams.planError && (
+        <Card className="border-red-200 bg-red-50/50">
+          <CardContent className="flex items-start gap-2 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+            <p className="text-xs text-red-800">{searchParams.planError}</p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
           Ranked by how often each gap appears across your target jobs and how much work it takes to close.

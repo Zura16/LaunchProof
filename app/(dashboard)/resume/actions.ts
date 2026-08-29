@@ -9,6 +9,7 @@ import { saveResumeFile, deleteResumeFile, ResumeUploadError } from '@/lib/servi
 import { extractPdfTextFromBuffer, PdfExtractionError } from '@/lib/services/pdf-text.service'
 import { analyzeResume, clearResumeEvidence } from '@/lib/services/resume-analysis.service'
 import { AIAnalysisError } from '@/lib/ai/generate-structured'
+import { consumeAiQuota, refundAiQuota, RateLimitError } from '@/lib/ai/rate-limit'
 import type { ActionState } from '@/app/onboarding/actions'
 
 export async function uploadResumeGeneral(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -46,9 +47,20 @@ export async function uploadResumeGeneral(_prev: ActionState, formData: FormData
 export async function analyzeResumeAction(resumeId: string) {
   const user = await requireUser()
 
+  let quotaId: string
+  try {
+    quotaId = await consumeAiQuota(user.id, 'RESUME_ANALYSIS')
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      redirect(`/resume?analysisError=${encodeURIComponent(e.message)}`)
+    }
+    throw e
+  }
+
   try {
     await analyzeResume(resumeId, user.id)
   } catch (e) {
+    await refundAiQuota(quotaId)
     if (e instanceof AIAnalysisError || e instanceof PdfExtractionError) {
       redirect(`/resume?analysisError=${encodeURIComponent(e.message)}`)
     }
