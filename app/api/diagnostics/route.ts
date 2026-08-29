@@ -121,7 +121,12 @@ export async function GET(request: Request) {
   // Vercel injects a Blob store's token as BLOB_READ_WRITE_TOKEN by default,
   // but prefixes it when the store is connected with a custom prefix. List
   // matching variable *names* (never values) so a renamed token is visible.
-  const blobRelatedVarNames = Object.keys(process.env).filter((k) => /blob|storage/i.test(k)).sort()
+  // Report length only — never the value — so an empty-but-present variable
+  // is distinguishable from a populated one.
+  const blobRelatedVarNames = Object.keys(process.env)
+    .filter((k) => /blob|storage/i.test(k))
+    .sort()
+    .map((k) => `${k}: ${(process.env[k] ?? '').length} chars`)
 
   const { activeStorageDriver, resumeUploadsAvailable } = await import('@/lib/services/resume-storage.service')
   const storage = {
