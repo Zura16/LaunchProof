@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/auth/require-user'
+import { assertNotDemoAccount, DemoAccountError } from '@/lib/auth/demo-guard'
 import { prisma } from '@/lib/db/prisma'
 import { signOut } from '@/lib/auth/auth'
 import { studentInfoSchema } from '@/schemas/onboarding'
@@ -74,6 +75,12 @@ export async function syncGitHubAction() {
 
 export async function disconnectGitHubAction() {
   const user = await requireUser()
+  try {
+    await assertNotDemoAccount(user.id)
+  } catch (e) {
+    if (e instanceof DemoAccountError) redirect(`/settings?githubError=${encodeURIComponent(e.message)}`)
+    throw e
+  }
 
   await clearGitHubEvidence(user.id)
   await prisma.gitHubAccount.deleteMany({ where: { userId: user.id } })
@@ -87,6 +94,12 @@ export async function disconnectGitHubAction() {
 
 export async function deleteAccountAction() {
   const user = await requireUser()
+  try {
+    await assertNotDemoAccount(user.id)
+  } catch (e) {
+    if (e instanceof DemoAccountError) redirect(`/settings?githubError=${encodeURIComponent(e.message)}`)
+    throw e
+  }
   await prisma.user.delete({ where: { id: user.id } })
   await signOut({ redirectTo: '/' })
 }

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/auth/require-user'
+import { assertNotDemoAccount, DemoAccountError } from '@/lib/auth/demo-guard'
 import { prisma } from '@/lib/db/prisma'
 import { updateApplicationSchema, TERMINAL_STATUSES } from '@/schemas/application'
 import type { ApplicationStatus } from '@prisma/client'
@@ -105,6 +106,12 @@ export async function updateApplicationAction(
 
 export async function deleteApplicationAction(applicationId: string) {
   const user = await requireUser()
+  try {
+    await assertNotDemoAccount(user.id)
+  } catch (e) {
+    if (e instanceof DemoAccountError) redirect('/applications')
+    throw e
+  }
   const application = await prisma.application.findUnique({ where: { id: applicationId } })
   if (!application || application.userId !== user.id) return
 

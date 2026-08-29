@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth/require-user'
+import { assertNotDemoAccount, DemoAccountError } from '@/lib/auth/demo-guard'
 import { prisma } from '@/lib/db/prisma'
 import { saveResumeFile, deleteResumeFile, ResumeUploadError } from '@/lib/services/resume-storage.service'
 import { extractPdfTextFromBuffer, PdfExtractionError } from '@/lib/services/pdf-text.service'
@@ -63,6 +64,12 @@ export async function analyzeResumeAction(resumeId: string) {
 
 export async function deleteResumeAction(resumeId: string) {
   const user = await requireUser()
+  try {
+    await assertNotDemoAccount(user.id)
+  } catch (e) {
+    if (e instanceof DemoAccountError) redirect(`/resume?analysisError=${encodeURIComponent(e.message)}`)
+    throw e
+  }
   const resume = await prisma.resume.findUnique({ where: { id: resumeId } })
   if (!resume || resume.userId !== user.id) return
 

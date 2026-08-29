@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/auth/require-user'
+import { assertNotDemoAccount, DemoAccountError } from '@/lib/auth/demo-guard'
 import { prisma } from '@/lib/db/prisma'
 import { manualJobSchema } from '@/schemas/onboarding'
 import { createManualSavedJob } from '@/lib/services/saved-jobs.service'
@@ -31,6 +32,12 @@ export async function addJobAction(_prev: ActionState, formData: FormData): Prom
 
 export async function deleteSavedJobAction(savedJobId: string) {
   const user = await requireUser()
+  try {
+    await assertNotDemoAccount(user.id)
+  } catch (e) {
+    if (e instanceof DemoAccountError) redirect(`/jobs/${savedJobId}?analysisError=${encodeURIComponent(e.message)}`)
+    throw e
+  }
   const saved = await prisma.savedJob.findUnique({ where: { id: savedJobId } })
   if (!saved || saved.userId !== user.id) return
 

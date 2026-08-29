@@ -10,6 +10,7 @@ import { DeleteAccountButton } from '@/components/settings/delete-account-button
 import { GitHubActions } from '@/components/settings/github-section'
 import { TargetCompaniesForm } from '@/components/settings/target-companies-form'
 import { toDateInputValue } from '@/lib/utils'
+import { isDemoAccount } from '@/lib/auth/demo-guard'
 import type { RepoAnalysis } from '@/lib/github/types'
 
 // A full sync reads every public repository from GitHub — roughly 30s for a
@@ -33,7 +34,7 @@ function Signal({ ok, label }: { ok: boolean; label: string }) {
 export default async function SettingsPage({ searchParams }: { searchParams: { githubError?: string } }) {
   const user = await requireUser()
 
-  const [profile, githubAccount, trackedCompanies] = await Promise.all([
+  const [profile, githubAccount, trackedCompanies, onDemoAccount] = await Promise.all([
     prisma.studentProfile.findUniqueOrThrow({ where: { userId: user.id } }),
     prisma.gitHubAccount.findUnique({
       where: { userId: user.id },
@@ -44,6 +45,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: { g
       select: { companyName: true },
       orderBy: { companyName: 'asc' },
     }),
+    isDemoAccount(user.id),
   ])
 
   return (
@@ -183,14 +185,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: { g
         </CardContent>
       </Card>
 
-      <Card className="border-red-200">
+      <Card className={onDemoAccount ? undefined : 'border-red-200'}>
         <CardHeader>
-          <CardTitle className="text-red-700">Danger Zone</CardTitle>
-          <CardDescription>Permanently delete your account and all associated data.</CardDescription>
+          <CardTitle className={onDemoAccount ? undefined : 'text-red-700'}>Danger Zone</CardTitle>
+          <CardDescription>
+            {onDemoAccount
+              ? 'Disabled on the shared demo account — everyone exploring LaunchProof signs into this same profile.'
+              : 'Permanently delete your account and all associated data.'}
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <DeleteAccountButton />
-        </CardContent>
+        <CardContent>{onDemoAccount ? null : <DeleteAccountButton />}</CardContent>
       </Card>
     </div>
   )
