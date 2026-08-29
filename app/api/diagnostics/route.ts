@@ -39,6 +39,20 @@ export async function GET(request: Request) {
     githubClientIdValue: process.env.GITHUB_CLIENT_ID ?? null,
     githubClientIdShape: shape(process.env.GITHUB_CLIENT_ID),
     githubClientSecretShape: shape(process.env.GITHUB_CLIENT_SECRET),
+    // Enough of DATABASE_URL to spot a malformed value (stray quotes, a
+    // leading newline, a truncated scheme) without exposing credentials.
+    databaseUrlShape: (() => {
+      const v = process.env.DATABASE_URL
+      if (!v) return null
+      return {
+        length: v.length,
+        firstChars: JSON.stringify(v.slice(0, 14)),
+        startsWithValidScheme: v.startsWith('postgresql://') || v.startsWith('postgres://'),
+        hasLeadingOrTrailingWhitespace: v !== v.trim(),
+        wrappedInQuotes: /^['"].*['"]$/.test(v.trim()),
+        containsNewline: /[\r\n]/.test(v),
+      }
+    })(),
   }
 
   // Ask GitHub whether this id/secret pair is even valid. Exchanging a
