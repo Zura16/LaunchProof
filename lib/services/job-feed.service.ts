@@ -11,7 +11,10 @@ export { JobFeedError }
  * someone seeking an internship or new-grad engineering role. Filtering at
  * ingest keeps the feed readable and the table small.
  */
-const RELEVANT_TITLE = /\b(intern|internship|new ?grad|university ?grad|campus|entry[- ]level|early career|apprentice|co-?op|graduate (engineer|program|developer))\b/i
+// `grad(uate)?` matters: without it a trailing word boundary after
+// 'grad' rejects the very common 'New Graduate Software Engineer' and
+// 'University Graduate' phrasings.
+const RELEVANT_TITLE = /\b(intern|internship|new ?grad(uate)?|university ?grad(uate)?|campus|entry[- ]level|early career|apprentice|co-?op|graduate (engineer|program|developer))\b/i
 
 const ENGINEERING_TITLE = /\b(engineer|engineering|developer|software|swe|programmer|data|machine learning|ml|ai|backend|frontend|full[- ]?stack|mobile|platform|infrastructure)\b/i
 

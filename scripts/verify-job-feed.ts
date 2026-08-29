@@ -13,7 +13,9 @@ const ACCEPT = [
   'Research Engineer Intern (Fall 2026)',
   'Software Engineering Intern (2027 Start) - Winter',
   'New Grad Software Engineer',
+  'New Graduate Software Engineer',
   'Backend Developer, University Graduate',
+  'University Grad Engineer',
   'Data Engineer Co-op',
   'Entry-Level Full-Stack Engineer',
 ]
@@ -33,6 +35,9 @@ const REJECT = [
   'Director of Engineering',
   'Software Architect',
   // neither
+  'Graduate Program Manager',
+  'Marketing Graduate Scheme',
+  'Senior Graduate Engineer',
   'University Recruiter',
   'Enterprise Sales Representative',
 ]
