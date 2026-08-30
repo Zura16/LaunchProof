@@ -38,10 +38,10 @@ export async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> 
  * Uploads parse the in-memory buffer instead; this is the re-analysis path
  * for a résumé whose text was never captured.
  */
-export async function extractPdfText(fileUrl: string): Promise<string> {
+export async function extractPdfText(fileUrl: string, resumeId?: string): Promise<string> {
   let buffer: Buffer
   try {
-    buffer = await readResumeFile(fileUrl)
+    buffer = await readResumeFile(fileUrl, resumeId)
   } catch {
     throw new PdfExtractionError('The stored résumé file could not be read. Try re-uploading it.')
   }

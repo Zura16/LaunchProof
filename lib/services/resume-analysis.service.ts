@@ -116,7 +116,7 @@ export async function analyzeResume(resumeId: string, userId: string) {
     throw new Error('Résumé not found')
   }
 
-  const rawText = resume.rawText?.trim() ? resume.rawText : await extractPdfText(resume.fileUrl)
+  const rawText = resume.rawText?.trim() ? resume.rawText : await extractPdfText(resume.fileUrl, resume.id)
   const result = await analyzeResumeText(rawText)
 
   await prisma.$transaction([

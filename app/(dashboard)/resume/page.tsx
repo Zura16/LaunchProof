@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { UploadResumeForm } from '@/components/resume/upload-resume-form'
-import { resumeUploadsAvailable } from '@/lib/services/resume-storage.service'
 import { ParsedResume } from '@/components/resume/parsed-resume'
 import { AnalyzeResumeButton } from '@/components/resume/analyze-resume-button'
 import { deleteResumeAction } from '@/app/(dashboard)/resume/actions'
@@ -50,17 +49,7 @@ export default async function ResumePage({ searchParams }: { searchParams: { ana
 
       <Card>
         <CardContent className="py-4">
-          {resumeUploadsAvailable() ? (
-            <UploadResumeForm />
-          ) : (
-            <div className="rounded-md border border-amber-200 bg-amber-50/60 px-4 py-3">
-              <p className="text-sm font-medium text-amber-900">Résumé upload isn&apos;t available here</p>
-              <p className="mt-1 text-xs leading-relaxed text-amber-800">
-                This deployment has no file storage configured, so uploaded files cannot be kept. Connect GitHub in
-                Settings and LaunchProof will build your evidence from your code instead.
-              </p>
-            </div>
-          )}
+          <UploadResumeForm />
         </CardContent>
       </Card>
 

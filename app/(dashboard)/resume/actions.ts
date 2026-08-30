@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth/require-user'
 import { assertNotDemoAccount, DemoAccountError } from '@/lib/auth/demo-guard'
 import { prisma } from '@/lib/db/prisma'
-import { saveResumeFile, deleteResumeFile, ResumeUploadError } from '@/lib/services/resume-storage.service'
+import { saveResumeFile, deleteResumeFile, persistResumeBytes, ResumeUploadError } from '@/lib/services/resume-storage.service'
 import { extractPdfTextFromBuffer, PdfExtractionError } from '@/lib/services/pdf-text.service'
 import { analyzeResume, clearResumeEvidence } from '@/lib/services/resume-analysis.service'
 import { AIAnalysisError } from '@/lib/ai/generate-structured'
@@ -30,9 +30,10 @@ export async function uploadResumeGeneral(_prev: ActionState, formData: FormData
     // back out of storage.
     const rawText = await extractPdfTextFromBuffer(saved.buffer)
 
-    await prisma.resume.create({
+    const resume = await prisma.resume.create({
       data: { userId: user.id, fileName: saved.fileName, fileUrl: saved.fileUrl, rawText },
     })
+    await persistResumeBytes(resume.id, saved.fileUrl, saved.buffer)
   } catch (e) {
     if (fileUrl) await deleteResumeFile(fileUrl)
     if (e instanceof ResumeUploadError || e instanceof PdfExtractionError) return { error: e.message }

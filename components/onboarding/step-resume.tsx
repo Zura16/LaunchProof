@@ -16,13 +16,7 @@ function SubmitButton() {
   )
 }
 
-export function StepResume({
-  existingFileName,
-  uploadsAvailable = true,
-}: {
-  existingFileName?: string
-  uploadsAvailable?: boolean
-}) {
+export function StepResume({ existingFileName }: { existingFileName?: string }) {
   const [state, formAction] = useFormState(uploadResumeAction, undefined)
   const [fileName, setFileName] = useState<string | null>(null)
 
@@ -35,25 +29,6 @@ export function StepResume({
             <p className="text-sm font-medium text-slate-900">{existingFileName}</p>
             <p className="text-xs text-slate-500">Uploaded — structured analysis is pending.</p>
           </div>
-        </div>
-        <div className="flex justify-end">
-          <Link href="/onboarding?step=4">
-            <Button>Continue</Button>
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  if (!uploadsAvailable) {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-md border border-amber-200 bg-amber-50/60 px-4 py-3">
-          <p className="text-sm font-medium text-amber-900">Résumé upload isn&apos;t available here</p>
-          <p className="mt-1 text-xs leading-relaxed text-amber-800">
-            This deployment has no file storage configured, so uploads can&apos;t be kept. Everything else works —
-            connect GitHub on the next step and LaunchProof will build your evidence from your code.
-          </p>
         </div>
         <div className="flex justify-end">
           <Link href="/onboarding?step=4">

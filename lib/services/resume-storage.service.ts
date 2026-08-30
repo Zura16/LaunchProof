@@ -1,8 +1,6 @@
-import { mkdir, writeFile, unlink, readFile } from 'fs/promises'
-import path from 'path'
 import { randomUUID } from 'crypto'
+import { prisma } from '@/lib/db/prisma'
 
-const UPLOAD_ROOT = path.join(process.cwd(), 'uploads', 'resumes')
 const MAX_BYTES = 5 * 1024 * 1024 // 5MB
 
 export class ResumeUploadError extends Error {}
@@ -10,47 +8,45 @@ export class ResumeUploadError extends Error {}
 /**
  * The only module in the app that persists user files.
  *
- * Two drivers, selected by environment:
- *   - `blob`  — Vercel Blob, used when BLOB_READ_WRITE_TOKEN is present.
- *               Required on serverless hosts, where the filesystem is
- *               ephemeral and per-invocation: a file written during upload
- *               is gone by the next request.
- *   - `local` — local disk, the default for development and any host with
- *               a persistent volume.
+ * Two drivers:
+ *   - `blob`     — object storage, used when a Blob token is configured.
+ *                  The right choice at scale: files never touch the database.
+ *   - `database` — the PDF's bytes in Postgres. The default, because it works
+ *                  on every deployment with no additional configuration.
  *
- * Adding another backend (S3, R2, Supabase) means implementing the three
- * functions below for it; nothing outside this file touches storage.
+ * There is deliberately no local-filesystem driver any more. Serverless
+ * filesystems are read-only outside /tmp and wiped between requests, so
+ * writing uploads to disk worked in development and crashed in production
+ * with EROFS — the worst kind of difference between environments.
+ *
+ * The stored PDF is a fallback: text is extracted at upload time and kept on
+ * the Resume row, so nothing depends on retrieving the binary in normal use.
  */
-export type StorageDriver = 'blob' | 'local'
+export type StorageDriver = 'blob' | 'database'
 
 /**
  * Vercel injects a Blob store's token as BLOB_READ_WRITE_TOKEN, but prefixes
- * it (e.g. RESUMES_BLOB_READ_WRITE_TOKEN) when the store is connected under a
- * custom prefix. Accept either, so connecting a store just works instead of
- * silently leaving uploads disabled.
+ * it (e.g. RESUMES_BLOB_READ_WRITE_TOKEN) when connected under a custom
+ * prefix. Accept either, and treat an empty value as absent — a connected
+ * store can inject the name with no value, which is exactly what happened on
+ * this deployment.
  */
 export function blobToken(): string | undefined {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN
-  const key = Object.keys(process.env).find((k) => k.endsWith('BLOB_READ_WRITE_TOKEN'))
+  const direct = process.env.BLOB_READ_WRITE_TOKEN
+  if (direct && direct.trim()) return direct
+  const key = Object.keys(process.env).find(
+    (k) => k.endsWith('BLOB_READ_WRITE_TOKEN') && (process.env[k] ?? '').trim().length > 0
+  )
   return key ? process.env[key] : undefined
 }
 
 export function activeStorageDriver(): StorageDriver {
-  return blobToken() ? 'blob' : 'local'
+  return blobToken() ? 'blob' : 'database'
 }
 
-/**
- * Serverless platforms ship a read-only filesystem outside /tmp, so the local
- * driver cannot work there. Detecting it lets uploads fail with an
- * explanation instead of an EROFS crash the user cannot act on.
- */
-function isServerlessRuntime(): boolean {
-  return !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.NETLIFY
-}
-
-/** Whether this deployment can actually persist an uploaded file. */
+/** Uploads work on every deployment now; kept so callers can stay explicit. */
 export function resumeUploadsAvailable(): boolean {
-  return activeStorageDriver() === 'blob' || !isServerlessRuntime()
+  return true
 }
 
 function validate(file: File): void {
@@ -65,13 +61,8 @@ function validate(file: File): void {
   }
 }
 
-function storedNameFor(userId: string, originalName: string): string {
-  const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100)
-  return `${userId}-${randomUUID()}-${safeName}`
-}
-
 export interface StoredResume {
-  /** Local driver: a `/uploads/resumes/...` path. Blob driver: an absolute URL. */
+  /** A blob URL, or `db:<uuid>` when the bytes live in Postgres. */
   fileUrl: string
   fileName: string
   /** The file's bytes, so callers can parse without a second round trip. */
@@ -82,7 +73,8 @@ export async function saveResumeFile(userId: string, file: File): Promise<Stored
   validate(file)
 
   const buffer = Buffer.from(await file.arrayBuffer())
-  const storedName = storedNameFor(userId, file.name)
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100)
+  const storedName = `${userId}-${randomUUID()}-${safeName}`
 
   if (activeStorageDriver() === 'blob') {
     try {
@@ -100,39 +92,27 @@ export async function saveResumeFile(userId: string, file: File): Promise<Stored
     }
   }
 
-  if (isServerlessRuntime()) {
-    throw new ResumeUploadError(
-      'Résumé uploads are not configured on this deployment. Its filesystem is temporary, so files must go to object storage — set BLOB_READ_WRITE_TOKEN. Everything else in LaunchProof works without it.'
-    )
-  }
+  // Database driver: the bytes are attached by persistResumeBytes once the
+  // Resume row exists, since ResumeFile is keyed on it.
+  return { fileUrl: `db:${randomUUID()}`, fileName: file.name, buffer }
+}
 
-  try {
-    await mkdir(UPLOAD_ROOT, { recursive: true })
-    await writeFile(path.join(UPLOAD_ROOT, storedName), buffer)
-  } catch (e) {
-    // A filesystem failure is a deployment problem, not something the student
-    // did wrong — surface it as a recoverable upload error rather than an
-    // unhandled crash.
-    const code = (e as NodeJS.ErrnoException)?.code
-    throw new ResumeUploadError(
-      code === 'EROFS' || code === 'EACCES' || code === 'EPERM'
-        ? 'This deployment cannot write uploaded files to disk. Configure object storage (BLOB_READ_WRITE_TOKEN) to enable résumé uploads.'
-        : 'The résumé could not be saved. Please try again.'
-    )
-  }
-
-  return { fileUrl: `/uploads/resumes/${storedName}`, fileName: file.name, buffer }
+/** Attach the uploaded bytes to a Resume when using the database driver. */
+export async function persistResumeBytes(resumeId: string, fileUrl: string, buffer: Buffer): Promise<void> {
+  if (!fileUrl.startsWith('db:')) return
+  await prisma.resumeFile.upsert({
+    where: { resumeId },
+    update: { data: buffer, byteSize: buffer.length },
+    create: { resumeId, data: buffer, byteSize: buffer.length },
+  })
 }
 
 export async function deleteResumeFile(fileUrl: string): Promise<void> {
   if (fileUrl.startsWith('http')) {
     const { del } = await import('@vercel/blob')
     await del(fileUrl, { token: blobToken() }).catch(() => undefined)
-    return
   }
-
-  const destPath = path.join(UPLOAD_ROOT, path.basename(fileUrl))
-  await unlink(destPath).catch(() => undefined)
+  // Database-stored bytes cascade with the Resume row.
 }
 
 /**
@@ -141,7 +121,7 @@ export async function deleteResumeFile(fileUrl: string): Promise<void> {
  * Only needed when re-analyzing a résumé whose extracted text is missing —
  * uploads parse from the in-memory buffer and never hit this path.
  */
-export async function readResumeFile(fileUrl: string): Promise<Buffer> {
+export async function readResumeFile(fileUrl: string, resumeId?: string): Promise<Buffer> {
   if (fileUrl.startsWith('http')) {
     const response = await fetch(fileUrl)
     if (!response.ok) {
@@ -150,5 +130,12 @@ export async function readResumeFile(fileUrl: string): Promise<Buffer> {
     return Buffer.from(await response.arrayBuffer())
   }
 
-  return readFile(path.join(UPLOAD_ROOT, path.basename(fileUrl)))
+  if (!resumeId) {
+    throw new ResumeUploadError('The stored résumé could not be located.')
+  }
+  const row = await prisma.resumeFile.findUnique({ where: { resumeId }, select: { data: true } })
+  if (!row) {
+    throw new ResumeUploadError('The stored résumé could not be found.')
+  }
+  return Buffer.from(row.data)
 }

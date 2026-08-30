@@ -197,9 +197,27 @@ model Resume {
   experiences  Experience[]
   projects     ResumeProject[]
   applications Application[]
+  file         ResumeFile?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// The uploaded PDF's bytes.
+//
+// Kept in its own table rather than a column on Resume so the binary is only
+// loaded when explicitly requested — every ordinary Resume query would
+// otherwise drag the whole file along. Storing it in Postgres means uploads
+// work on any deployment with no object-storage configuration; object storage
+// is used instead when one is configured.
+model ResumeFile {
+  id       String @id @default(cuid())
+  resumeId String @unique
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  data     Bytes
+  byteSize Int
+
+  createdAt DateTime @default(now())
 }
 
 model Experience {
