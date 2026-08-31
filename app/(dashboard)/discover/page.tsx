@@ -35,7 +35,11 @@ export default async function DiscoverPage({
   const user = await requireUser()
 
   const [feedJobs, sources, savedUrls, profile] = await Promise.all([
-    prisma.feedJob.findMany({ orderBy: [{ postedAt: 'desc' }, { firstSeenAt: 'desc' }], take: 120 }),
+    prisma.feedJob.findMany({
+      where: { isActive: true },
+      orderBy: [{ postedAt: 'desc' }, { firstSeenAt: 'desc' }],
+      take: 120,
+    }),
     prisma.jobSource.findMany({ where: { isActive: true }, select: { companyName: true, lastFetchedAt: true, lastError: true } }),
     prisma.savedJob
       .findMany({ where: { userId: user.id }, select: { jobPosting: { select: { url: true } } } })

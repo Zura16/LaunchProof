@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { refreshJobFeed } from '@/lib/services/job-feed.service'
+import { verifyFeedLinks } from '@/lib/services/link-verification.service'
 
 // Polling 74 boards took ~19s in practice; allow headroom as the list grows.
 export const maxDuration = 300
@@ -30,12 +31,17 @@ export async function GET(request: Request) {
   const startedAt = Date.now()
   const results = await refreshJobFeed()
 
+  // Verify the stalest links after ingesting. Bounded, so a run stays well
+  // inside the time limit; coverage rotates across runs.
+  const linkCheck = await verifyFeedLinks(80)
+
   const summary = {
     boards: results.length,
     scanned: results.reduce((sum, r) => sum + r.scanned, 0),
     relevant: results.reduce((sum, r) => sum + r.relevant, 0),
     added: results.reduce((sum, r) => sum + r.added, 0),
     failed: results.filter((r) => r.error).map((r) => ({ company: r.company, error: r.error })),
+    linkCheck,
     durationMs: Date.now() - startedAt,
   }
 

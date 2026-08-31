@@ -353,6 +353,12 @@ model FeedJob {
   /// attached is an order of magnitude more data than the listing alone.
   descriptionText String? @db.Text
 
+  // Link health. A posting that has been filled or pulled still returns from
+  // the board's API for a while, so freshness is verified separately.
+  isActive          Boolean   @default(true)
+  lastCheckedAt     DateTime?
+  deactivatedReason String?
+
   postedAt    DateTime?
   /// When LaunchProof first saw it — what "new" is measured against, since
   /// providers report publish dates inconsistently.
@@ -364,6 +370,7 @@ model FeedJob {
   @@unique([provider, externalId])
   @@index([firstSeenAt])
   @@index([postedAt])
+  @@index([isActive, lastCheckedAt])
 }
 
 // Job System
