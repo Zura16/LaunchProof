@@ -134,6 +134,30 @@ export async function refreshJobFeed(): Promise<IngestResult[]> {
 }
 
 /**
+ * Fetch descriptions for postings that don't have one yet.
+ *
+ * Greenhouse omits descriptions from board listings, so most feed rows arrive
+ * without text. Anything that reads a posting's wording — the sponsorship and
+ * eligibility flags, the skill pre-screen — is silently useless until the text
+ * exists. Bounded per run so the work spreads across refreshes.
+ */
+export async function hydrateMissingDescriptions(limit = 40): Promise<number> {
+  const jobs = await prisma.feedJob.findMany({
+    where: { isActive: true, OR: [{ descriptionText: null }, { descriptionText: '' }] },
+    orderBy: [{ postedAt: 'desc' }, { firstSeenAt: 'desc' }],
+    take: limit,
+    select: { id: true },
+  })
+
+  let hydrated = 0
+  for (const job of jobs) {
+    const text = await hydrateFeedJob(job.id).catch(() => null)
+    if (text) hydrated += 1
+  }
+  return hydrated
+}
+
+/**
  * Ensure a feed job has its full description, fetching it on demand.
  * Greenhouse omits descriptions from listings, so this is where they arrive.
  */

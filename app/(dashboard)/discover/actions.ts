@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { requireUser } from '@/lib/auth/require-user'
 import { prisma } from '@/lib/db/prisma'
-import { refreshJobFeed, hydrateFeedJob } from '@/lib/services/job-feed.service'
+import { refreshJobFeed, hydrateFeedJob, hydrateMissingDescriptions } from '@/lib/services/job-feed.service'
 import { verifyFeedLinks } from '@/lib/services/link-verification.service'
 import { createManualSavedJob } from '@/lib/services/saved-jobs.service'
 
@@ -17,6 +17,7 @@ export async function refreshFeedAction() {
   // Check a slice of the stalest links so a manual refresh also prunes
   // postings that have since been filled.
   await verifyFeedLinks(40)
+  await hydrateMissingDescriptions(30)
   const failed = results.filter((r) => r.error)
 
   revalidatePath('/discover')

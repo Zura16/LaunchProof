@@ -5,16 +5,25 @@ import { prisma } from '@/lib/db/prisma'
 import { computeFeedFit } from '@/lib/services/feed-fit.service'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/shared/empty-state'
 import { RefreshFeedButton, SaveFeedJobButton } from '@/components/discover/feed-controls'
 import { cn } from '@/lib/utils'
+import {
+  readEligibility,
+  isSponsorshipConcern,
+  sponsorshipLabel,
+  isLikelyUsLocation,
+} from '@/lib/services/eligibility.service'
 
 const FILTERS = [
   { key: 'mine', label: 'My companies' },
   { key: 'new', label: 'Newest' },
   { key: 'fit', label: 'Best evidence fit' },
   { key: 'remote', label: 'Remote' },
+  { key: 'us', label: 'US only' },
+  { key: 'sponsors', label: 'Open to sponsorship' },
 ] as const
 
 function relativeTime(date: Date): string {
@@ -46,12 +55,19 @@ export default async function DiscoverPage({
       .then((rows) => new Set(rows.map((r) => r.jobPosting.url).filter(Boolean) as string[])),
     prisma.studentProfile.findUnique({
       where: { userId: user.id },
-      select: { targetCompanies: true },
+      select: { targetCompanies: true, sponsorshipRequired: true },
     }),
   ])
 
   const targetCompanies = profile?.targetCompanies ?? []
   const targetSet = new Set(targetCompanies.map((c) => c.toLowerCase()))
+  const needsSponsorship = profile?.sponsorshipRequired ?? false
+
+  // Read each posting's own words on sponsorship. Only meaningful once the
+  // description has been fetched, so it stays silent until then.
+  const eligibility = new Map(
+    feedJobs.map((j) => [j.id, readEligibility(`${j.title}\n${j.descriptionText ?? ''}`)])
+  )
 
   const fits = await computeFeedFit(
     user.id,
@@ -64,6 +80,10 @@ export default async function DiscoverPage({
   let visible = [...feedJobs]
   if (filter === 'mine') visible = visible.filter((j) => targetSet.has(j.company.toLowerCase()))
   if (filter === 'remote') visible = visible.filter((j) => j.isRemote)
+  if (filter === 'us') visible = visible.filter((j) => isLikelyUsLocation(j.location))
+  if (filter === 'sponsors') {
+    visible = visible.filter((j) => !isSponsorshipConcern(eligibility.get(j.id)?.sponsorship ?? 'unstated'))
+  }
   if (filter === 'fit') {
     visible.sort((a, b) => {
       const fa = fits.get(a.id)
@@ -171,6 +191,20 @@ export default async function DiscoverPage({
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-slate-900">{job.title}</p>
                       {job.isRemote && <Badge variant="outline">Remote</Badge>}
+                      {(() => {
+                        const e = eligibility.get(job.id)
+                        const label = e ? sponsorshipLabel(e.sponsorship) : null
+                        if (!label) return null
+                        // Only worth flagging a restriction to someone it affects;
+                        // a positive signal is useful to everyone.
+                        const concern = e && isSponsorshipConcern(e.sponsorship)
+                        if (concern && !needsSponsorship) return null
+                        return (
+                          <Tooltip content={e?.matchedPhrase ? `Posting says: “${e.matchedPhrase}”` : label}>
+                            <Badge variant={concern ? 'destructive' : 'success'}>{label}</Badge>
+                          </Tooltip>
+                        )
+                      })()}
                     </div>
                     <p className="text-xs text-slate-500">
                       {job.company}
